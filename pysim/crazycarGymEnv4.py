@@ -7,29 +7,25 @@ os.sys.path.insert(0, parentdir)
 import math
 import gym
 import time
+import pybullet
+import random
+import pybullet_data
+import numpy as np
+
+from pybullet_envs.bullet import bullet_client
+from pkg_resources import parse_version
 from gym import spaces
 from gym.utils import seeding
-import numpy as np
-import pybullet
-# from . import racecar
-from . import crazycar
-# import crazycar
-import random
-# from . import bullet_client
-from pybullet_envs.bullet import bullet_client
-import pybullet_data
-from pkg_resources import parse_version
 
 from . import track
+from . import crazycar
 from . import positions
-
-# import track as track
 
 RENDER_HEIGHT = 720
 RENDER_WIDTH = 960
 
 
-class CrazycarGymEnv3(gym.Env):
+class CrazycarGymEnv4(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
         'video.frames_per_second': 50
@@ -42,9 +38,9 @@ class CrazycarGymEnv3(gym.Env):
                  isDiscrete=False,
                  renders=False,
                  calibration=False,
-                 actionRandomized=True,
-                 origin=[0, 0, 0]):
-        print("init")
+                 origin=[0, 0, 0],
+                 selfcontrol=False):
+
         self._timeStep = 0.005
         self._urdfRoot = urdfRoot
         self._actionRepeat = actionRepeat
@@ -57,56 +53,49 @@ class CrazycarGymEnv3(gym.Env):
         self._prevAction = -1
         self._lastRandomAction = -1
         self._realCar = None
+        self._calibration = calibration
+        self._origin = origin
+        self._collisionCounter = 0
+        self._poscar = positions.CarPosition(origin)
+        self._control = selfcontrol
+
         if self._renders:
             self._p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
         else:
             self._p = bullet_client.BulletClient()
-        self._calibration = calibration
-        self._origin = origin
-        self._actionRanomized=actionRandomized
-        self._collisionCounter = 0
-        self._poscar = positions.CarPosition(origin)
 
         self.seed()
-        # self.reset()
+
+        # define observation space
         observationDim = 3
-        # print("observationDim")
-        # print(observationDim)
-        # observation_high = np.array([np.finfo(np.float32).max] * observationDim)
         observation_high = np.ones(observationDim) * 1000  # np.inf
+        self.observation_space = spaces.Box(-observation_high, observation_high, dtype=np.float32)
+
+        # define action space
         if (isDiscrete):
             self.action_space = spaces.Discrete(6) #91
         else:
             action_dim = 2
-            self._action_bound = 1
-            action_high = np.array([self._action_bound] * action_dim)
-            self.action_space = spaces.Box(-action_high, action_high, dtype=np.float32)
-        self.observation_space = spaces.Box(-observation_high, observation_high, dtype=np.float32)
-        self.viewer = None
+            action_upper_bound = 1
+            action_lower_bound = -1
+
+            action_high = np.array([action_upper_bound] * action_dim)
+            action_low  = np.array([action_lower_bound] * action_dim)
+
+            self.action_space = spaces.Box(action_low, action_high, dtype=np.float32)
 
     def reset(self, newCarPos=None):
+
         self._p.resetSimulation()
-        # p.setPhysicsEngineParameter(numSolverIterations=300)
         self._p.setTimeStep(self._timeStep)
 
+        # spawn plane
         self._planeId = self._p.loadURDF(os.path.join(currentdir, "data/plane.urdf"))
-        # https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/restitution.py
-        # p.changeDynamics(planeId,-1,lateralFriction=1)
-        # TODO
+        
+        # spawn race track
         track.createRaceTrack(self._p, self._origin)
 
-        # dist = 5 +2.*random.random()
-        # ang = 2.*3.1415925438*random.random()
-
-        # ballx = dist * math.sin(ang)
-        # bally = dist * math.cos(ang)
-        # ballx = originPos[0] + 0.2+random.random()*2.0 #2.9/2
-        #ballx = self._origin[0] + 2.9 / 2
-        #bally = self._origin[1] + 6.5 - 0.715 / 2
-        ballx = self._origin[0] + 0.715 / 2
-        bally = self._origin[1] + 4.0 - 0.715 / 2
-        ballz = 0.0
-
+        # spawn car
         if newCarPos is None:
             if self._envStepCounter < 30000:
                 carPos = self._poscar.getNewPosition(random.randint(3, 3))  # self._poscar.len()))
@@ -117,22 +106,31 @@ class CrazycarGymEnv3(gym.Env):
         if self._calibration:
             carPos = [2.70, 0.5, 0]
 
+        self._racecar = crazycar.Racecar(self._p, self._origin, carPos, urdfRootPath=self._urdfRoot,
+                                         timeStep=self._timeStep, calibration=self._calibration)
+
+        
+        # spawn ball
+        # ballx = self._origin[0] + 0.715 / 2
+        # bally = self._origin[1] + 4.0 - 0.715 / 2
+        # ballz = 0.0
+
         # self._ballUniqueId = self._p.loadURDF(os.path.join(self._urdfRoot, "sphere2.urdf"), [ballx, bally, ballz],
         #                                       globalScaling=0.60)
         # self._p.changeDynamics(self._ballUniqueId, -1, mass=0)
+
+        # reset common variables
+        for i in range(100):
+            self._p.stepSimulation()
+
         self._p.setGravity(0, 0, -10)
-        self._racecar = crazycar.Racecar(self._p, self._origin, carPos, urdfRootPath=self._urdfRoot,
-                                         timeStep=self._timeStep, calibration=self._calibration)
         self._envStepCounter = 0
         self._terminate = False
         self._prevAction = -1
         self._lastRandomAction = -1
         self._collisionCounter = 0
-
-
-        for i in range(100):
-            self._p.stepSimulation()
         self._observation = self.getExtendedObservation()
+
         return np.array(self._observation)
 
     def __del__(self):
@@ -143,14 +141,10 @@ class CrazycarGymEnv3(gym.Env):
         return [seed]
 
     def getExtendedObservation(self):
-        self._observation = []  # self._racecar.getObservation()
+        self._observation = []
         carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
         # ballpos, ballorn = self._p.getBasePositionAndOrientation(self._ballUniqueId)
-        invCarPos, invCarOrn = self._p.invertTransform(carpos, carorn)
         # ballPosInCar, ballOrnInCar = self._p.multiplyTransforms(invCarPos, invCarOrn, ballpos, ballorn)
-
-        # print(carorn)
-#        self._observation.extend([ballPosInCar[0], ballPosInCar[1]])
 
         posEuler = self._p.getEulerFromQuaternion(carorn)
 
@@ -186,14 +180,20 @@ class CrazycarGymEnv3(gym.Env):
         x_new, y_new, distanceRight = rayWithRadians(x, y, yaw+math.pi/2)
         
 
-        # basePos, orn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+        if self._control:
 
-        # viewMatrix        = self._p.computeViewMatrixFromYawPitchRoll(basePos, 2.5, -90, -40, 0, 2)
-        # projectionMatrix  = [1.0825318098068237, 0.0, 0.0, 0.0, 0.0, 1.732050895690918, 0.0, 0.0, 0.0, 0.0, -1.0002000331878662, -1.0, 0.0, 0.0, -0.020002000033855438, 0.0]
-        # img = self._p.getCameraImage(800, 800, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix)[2]
+            basePos, orn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
 
-        # self._observation.extend([img, carpos[0], carpos[1], yaw, distanceLeft, distanceFront, distanceRight])
+            viewMatrix        = self._p.computeViewMatrixFromYawPitchRoll(basePos, 2.5, -90, -40, 0, 2)
+            projectionMatrix  = [1.0825318098068237, 0.0, 0.0, 0.0, 0.0, 1.732050895690918, 0.0, 0.0, 0.0, 0.0, -1.0002000331878662, -1.0, 0.0, 0.0, -0.020002000033855438, 0.0]
+            img = self._p.getCameraImage(200, 200, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix)[2]
+
+            self._observation.extend([img, carpos[0], carpos[1], yaw, distanceLeft, distanceFront, distanceRight])
+
+            return self._observation
+
         self._observation.extend([distanceLeft, distanceFront, distanceRight])
+
         return self._observation
 
     def step(self, action):
@@ -202,25 +202,10 @@ class CrazycarGymEnv3(gym.Env):
             self._p.resetDebugVisualizerCamera(2.5, -90, -40, basePos)
 
         if (self._isDiscrete):
-            #fwd = [-1,-1,-1,0,0,0,1,1,1]
-            #steerings = [-0.6,0,0.6,-0.6,0,0.6,-0.6,0,0.6]
             fwd = [1, 1, 1, 1, 1, 1]
             steerings = [60, 75, 105, 106, 136, 151]
             forward = fwd[action]
             steer = steerings[action]
-            #steerings = range(60, 151, 1)
-            #forward = 1
-            #if (self._prevAction != action):
-            #    self._lastRandomAction = min(max(action + random.randint(-2, 2), 0), len(steerings) - 1)
-            #    self._prevAction = action
-            #    # print("lastAction = {}".format(self._lastRandomAction))
-            #if self._actionRanomized is False or self._realCar is not None:
-            #    steer = steerings[action]
-            #else:
-            #    steer = steerings[self._lastRandomAction]
-            #if (self._calibration):
-            #    forward = 1
-            #    steer = 0
             realaction = [forward, steer]
         else:
             realaction = action
@@ -301,54 +286,24 @@ class CrazycarGymEnv3(gym.Env):
         ornObj = self._p.getQuaternionFromEuler([0, 0, angle])
         self._p.resetBasePositionAndOrientation(self._racecar.racecarUniqueId, posObj, ornObj)
 
-    def _reward2(self):
+    def _reward(self):
 
         # closestPoints = self._p.getClosestPoints(self._racecar.racecarUniqueId, self._ballUniqueId, 10000)
 
         reward = 1
 
         if self._carCollision(5) or self._carCollision(1) or self._carCollision(3) or self._carCollision(0) or self._carCollision(2) or self._carCollision(4):
+            self._terminate = True
+            return 0
             reward = -10000
             self._collisionCounter += 1
 
-        if self._collisionCounter > 50:
+        if self._collisionCounter >= 1:
             self._terminate = True
 
         # if -closestPoints[0][8] >= -0.05:
         #     self._terminate = True
         #     reward += 1000000
-
-        return reward
-
-    def _reward(self):
-
-        return self._reward2()
-
-        reward = -1
-
-        closestPoints = self._p.getClosestPoints(self._racecar.racecarUniqueId, self._ballUniqueId, 10000)
-        numPt = len(closestPoints)
-        penalty = 0
-        if self._carCollision(5) or self._carCollision(1) or self._carCollision(3):
-            penalty = -10000
-            self._collisionCounter += 1
-
-        reward = -1 * closestPoints[0][8] - 0 * self._envStepCounter + penalty
-
-        if -closestPoints[0][8] >= -2.5:
-            reward = -0.75 * closestPoints[0][8] - 0 * self._envStepCounter + penalty
-
-        if -closestPoints[0][8] >= -1.5:
-            reward = -0.5 * closestPoints[0][8] - 0 * self._envStepCounter + penalty
-
-        if -closestPoints[0][8] >= -0.5:
-            reward = -0.25 * closestPoints[0][8] - 0 * self._envStepCounter + penalty
-
-        if self._collisionCounter > 50:
-            self._terminate = True
-        if -closestPoints[0][8] >= -0.05:
-            self._terminate = True
-            reward += 1000000
 
         return reward
 

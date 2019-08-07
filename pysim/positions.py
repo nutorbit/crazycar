@@ -19,8 +19,8 @@ class CarPosition:
         x = self._origin[0]
         y = self._origin[1]
         z = self._origin[2] + 0.03
-        rnd_onemeter = 0 #random.random() * 1.0 - 0.5
-        rnd_carwidth = 0 #random.random() * 0.5 - 0.25
+        rnd_onemeter = random.random() * 1.0 - 0.5
+        rnd_carwidth = random.random() * 0.5 - 0.25
         rnd_position = random.random() * 1.4 - 0.7  # ~ +/-40 grad
         trackdata = {
             1: [x + 2.9 - 0.7/2, y + 0.7, math.pi/2.0],                              # start position

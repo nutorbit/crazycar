@@ -13,6 +13,7 @@ pygame = "*"
 py4j = "*"
 baselines = "*"
 stable-baselines = "*"
+pyglet = "*"
 
 [requires]
 python_version = "3.7"
