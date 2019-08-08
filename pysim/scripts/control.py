@@ -2,9 +2,8 @@ import pyglet
 import numpy as np
 import time
 
-
 from gym.envs.classic_control.rendering import SimpleImageViewer
-from . import CrazycarGymEnv4
+from pysim import CrazycarGymEnv4
 from PIL import Image
 
 
@@ -30,17 +29,13 @@ class EnvInteractor(SimpleImageViewer):
     def get_action(self):
         event = None
         if self.keys[pyglet.window.key.UP]:
-            # event = 'forward'
-            event = 2
+            event = 2 # forward
         if self.keys[pyglet.window.key.LEFT]:
-            # event = 'left'
-            event = 0
+            event = 0 # left
         if self.keys[pyglet.window.key.RIGHT]:
-            # event = 'right'
-            event = 5
+            event = 5 # right
         if self.keys[pyglet.window.key.ESCAPE]:
-            # event = 'escape'
-            self._finished = True
+            self._finished = True # escape
         return event
 
     def run_loop(self, env):
