@@ -3,6 +3,14 @@ DISCRETE_ACTION = True
 
 ACTION_REP = 2
 
+MAX_STEPS = 1e7
+
+RENDER_HEIGHT = 720
+
+RENDER_WIDTH = 960
+
+RANDOM_POSITION = False
+
 
 # config for training ppo
 N_PARALLEL = 4

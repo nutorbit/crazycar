@@ -16,13 +16,11 @@ from pybullet_envs.bullet import bullet_client
 from pkg_resources import parse_version
 from gym import spaces
 from gym.utils import seeding
+from pysim.constants import MAX_STEPS, RENDER_HEIGHT, RENDER_WIDTH
 
 from . import track
 from . import crazycar
 from . import positions
-
-RENDER_HEIGHT = 720
-RENDER_WIDTH = 960
 
 
 class CrazycarGymEnv4(gym.Env):
@@ -58,6 +56,7 @@ class CrazycarGymEnv4(gym.Env):
         self._collisionCounter = 0
         self._poscar = positions.CarPosition(origin)
         self._control = selfcontrol
+        self._speed = 0
 
         if self._renders:
             self._p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
@@ -68,19 +67,16 @@ class CrazycarGymEnv4(gym.Env):
 
         # define observation space
         observationDim = 3
-        observation_high = np.ones(observationDim) * 1000  # np.inf
+        observation_high = np.full(observationDim, np.inf)
         self.observation_space = spaces.Box(-observation_high, observation_high, dtype=np.float32)
 
         # define action space
         if (isDiscrete):
-            self.action_space = spaces.Discrete(6) #91
+            self.action_space = spaces.Discrete(8) #91
         else:
-            action_dim = 2
-            action_upper_bound = 1
-            action_lower_bound = -1
 
-            action_high = np.array([action_upper_bound] * action_dim)
-            action_low  = np.array([action_lower_bound] * action_dim)
+            action_high = np.array([1, 160])
+            action_low  = np.array([-1, 40])
 
             self.action_space = spaces.Box(action_low, action_high, dtype=np.float32)
 
@@ -175,9 +171,9 @@ class CrazycarGymEnv4(gym.Env):
 
         x_new, y_new, distanceFront = rayWithRadians(x, y, yaw)
 
-        x_new, y_new, distanceLeft  = rayWithRadians(x, y, yaw-math.pi/2)
+        x_new, y_new, distanceLeft  = rayWithRadians(x, y, yaw-math.pi/4)
 
-        x_new, y_new, distanceRight = rayWithRadians(x, y, yaw+math.pi/2)
+        x_new, y_new, distanceRight = rayWithRadians(x, y, yaw+math.pi/4)
         
 
         if self._control:
@@ -202,13 +198,15 @@ class CrazycarGymEnv4(gym.Env):
             self._p.resetDebugVisualizerCamera(2.5, -90, -40, basePos)
 
         if (self._isDiscrete):
-            fwd = [1, 1, 1, 1, 1, 1]
-            steerings = [60, 75, 105, 106, 136, 151]
+            fwd = [1, 1, 1, 1, 1, 1, 1, 1]
+            steerings = [40, 60, 75, 105, 106, 136, 151, 171]
             forward = fwd[action]
             steer = steerings[action]
             realaction = [forward, steer]
         else:
             realaction = action
+
+        self._speed = realaction[0]
 
         self._racecar.applyAction(realaction)
         if self._realCar is None:
@@ -228,7 +226,7 @@ class CrazycarGymEnv4(gym.Env):
             self._envStepCounter += 1
 
         reward = self._reward()
-        done = self._termination()
+        done   = self._termination()
         # print("len=%r" % len(self._observation))
         # print("{}".format(self._observation))
 
@@ -262,7 +260,7 @@ class CrazycarGymEnv4(gym.Env):
         return self._envStepCounter * self._timeStep
 
     def _termination(self):
-        return self._envStepCounter > 1e7 or self._terminate
+        return self._envStepCounter > MAX_STEPS or self._terminate
 
     def _carCollision(self, carLinkIndex):
         aabbmin, aabbmax = self._p.getAABB(self._racecar.racecarUniqueId,
@@ -290,6 +288,7 @@ class CrazycarGymEnv4(gym.Env):
 
         # closestPoints = self._p.getClosestPoints(self._racecar.racecarUniqueId, self._ballUniqueId, 10000)
 
+        # reward = self._speed
         reward = 1
 
         if self._carCollision(5) or self._carCollision(1) or self._carCollision(3) or self._carCollision(0) or self._carCollision(2) or self._carCollision(4):
