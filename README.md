@@ -10,7 +10,7 @@ pipenv shell
 
 ## Running the code
 
-training a model.
+**training a model.**
 
 ```zsh
 python -m pysim.scripts.train --load=PATH --nupdate=100 OUTPUTMODEL
@@ -22,7 +22,7 @@ python -m pysim.scripts.train --load=PATH --nupdate=100 OUTPUTMODEL
 
 `OUTPUTMODEL` is the name of output.
 
-testing a model.
+**testing a model.**
 
 ```zsh
 python -m pysim.scripts.test PATH2MODEL
@@ -30,7 +30,7 @@ python -m pysim.scripts.test PATH2MODEL
 
 `PATH2MODEL` is path to model that you want to test.
 
-manual control.
+**manual control.**
 
 ```zsh
 python -m pysim.scripts.control
