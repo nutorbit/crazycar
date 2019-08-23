@@ -30,6 +30,7 @@ def main(path):
 
 			# predict action
 			action = model.predict(state)[0]
+			# action = (1, -1)
 			print(action)
 
 			# step

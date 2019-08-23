@@ -69,11 +69,13 @@ class CrazycarGymEnv4(gym.Env):
         if (isDiscrete):
             self.action_space = spaces.Discrete(8) #91
         else:
+            # action_low  = np.array([1, -60])  # 40   0   -40 -60
+            # action_high = np.array([1, 60]) # 160  120  80  60
 
-            action_high = np.array([1, 160])
-            action_low  = np.array([0, 40])
+            action_low  = np.array([1, -1])
+            action_high = np.array([1,  1])
 
-            self.action_space = spaces.Box(action_low, action_high, dtype=np.float32)
+            self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
     def reset(self, newCarPos=None):
 
@@ -186,6 +188,8 @@ class CrazycarGymEnv4(gym.Env):
         return self._observation
 
     def step(self, action):
+        # action[1] += 100
+        # print(action)
         if (self._renders):
             basePos, orn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
             self._p.resetDebugVisualizerCamera(2.5, -90, -40, basePos)
@@ -266,13 +270,13 @@ class CrazycarGymEnv4(gym.Env):
 
         # closestPoints = self._p.getClosestPoints(self._racecar.racecarUniqueId, self._ballUniqueId, 10000)
 
-        # reward = self._speed
-        reward = 1
+        reward = self._speed
+        # reward = 1
 
         if self._carCollision(5) or self._carCollision(1) or self._carCollision(3) or self._carCollision(0) or self._carCollision(2) or self._carCollision(4):
             # self._terminate = True
             # return 0
-            reward = -10000
+            reward = -10
             self._collisionCounter += 1
 
         if self._collisionCounter >= 10:

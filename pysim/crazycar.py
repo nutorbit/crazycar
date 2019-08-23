@@ -71,7 +71,8 @@ class Racecar:
         self.nMotors = 2
         self.motorizedwheels=[8,15]
         self.speedMultiplier = 51
-        self.steeringMultiplier = 0.257729373093 # +/- 14.7668 grad
+        # self.steeringMultiplier = 0.257729373093 # +/- 14.7668 grad
+        self.steeringMultiplier = 0.5
 
     def getActionDimension(self):
         return self.nMotors
@@ -94,11 +95,11 @@ class Racecar:
         #print("targetVelocity")
         #print(targetVelocity)
         
-        #steeringAngle = motorCommands[1]*self.steeringMultiplier
-        if (motorCommands[1] < 106):
-            steeringAngle = (-4.0/709.0 * motorCommands[1] + 285.0/478.0)
-        else:
-            steeringAngle = -(4.0/709.0 * motorCommands[1] - 285.0/478.0)
+        steeringAngle = motorCommands[1]*self.steeringMultiplier
+        # if (motorCommands[1] < 106):
+        #     steeringAngle = (-4.0/709.0 * motorCommands[1] + 285.0/478.0)
+        # else:
+        #     steeringAngle = -(4.0/709.0 * motorCommands[1] - 285.0/478.0)
         #print("steeringAngle")
         #print("{} => {}".format(motorCommands[1], steeringAngle))
         #print("maxForce")

@@ -1,7 +1,7 @@
 # config environment
-DISCRETE_ACTION = True
+DISCRETE_ACTION = False
 
-ACTION_REP = 1
+ACTION_REP = 2
 
 MAX_STEPS = 1e5
 
@@ -13,7 +13,7 @@ RANDOM_POSITION = False
 
 
 # config for training ppo
-N_PARALLEL = 8
+N_PARALLEL = 4
 
 N_STEPS = 512
 

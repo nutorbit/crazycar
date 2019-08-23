@@ -6,6 +6,8 @@ from pysim.constants import *
 from stable_baselines.common.policies import MlpPolicy, MlpLnLstmPolicy, CnnPolicy
 from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize, VecFrameStack, SubprocVecEnv
 from stable_baselines.ppo2 import PPO2
+from stable_baselines.sac import SAC
+from stable_baselines.ddpg import DDPG
 
 
 @click.command()
@@ -17,6 +19,9 @@ def main(load, nupdate, output):
     # init environment
     env = CrazycarGymEnv4(renders=False, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
     env = SubprocVecEnv([lambda: env for _ in range(N_PARALLEL)])
+    # env = DummyVecEnv([lambda: env])
+
+    # print(env.action_space.low, env.action_space.high)
 
     # init policy
     policy = MlpPolicy
@@ -40,6 +45,7 @@ def main(load, nupdate, output):
                     verbose=1,
                     tensorboard_log='./logs/tensorboard/ppo2/'
         )
+        # model = DDPG("MlpPolicy", env, verbose=1)
 
     iters = (N_STEPS * N_PARALLEL) * nupdate
 
