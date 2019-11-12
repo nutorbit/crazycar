@@ -3,7 +3,7 @@ DISCRETE_ACTION = False
 
 ACTION_REP = 2
 
-MAX_STEPS = 1e5
+MAX_STEPS = 1e7
 
 RENDER_HEIGHT = 720
 
@@ -13,7 +13,7 @@ RANDOM_POSITION = False
 
 
 # config for training ppo
-N_PARALLEL = 4
+N_PARALLEL = 16
 
 N_STEPS = 512
 

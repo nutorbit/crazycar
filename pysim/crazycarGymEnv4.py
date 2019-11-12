@@ -61,9 +61,10 @@ class CrazycarGymEnv4(gym.Env):
         self.seed()
 
         # define observation space
-        observationDim = 3
-        observation_high = np.full(observationDim, np.inf)
-        self.observation_space = spaces.Box(-observation_high, observation_high, dtype=np.float32)
+        observationDim = 5
+        observation_high = np.full(observationDim, 5)
+        observation_low = np.zeros(observationDim)
+        self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
 
         # define action space
         if (isDiscrete):
@@ -88,12 +89,15 @@ class CrazycarGymEnv4(gym.Env):
         # spawn race track
         track.createRaceTrack(self._p, self._origin)
 
+        # set target TODO
+        self.coord_targets = [(0.5, 6), (0.15, 3.75), (1.3, 3.75), (0.95, 4.75), (2, 4.75), (2, 4.75), (2, 2.5), (1, 2), (0.25, 1), (1.5, 0.1), (2.5, 1), (2.5, 5.5)]
+        self.target_idx = 0
+        # for obj in self.coord_targets:
+        #     track.createObj(self._p, self._origin, *obj)
+
         # spawn car
         if newCarPos is None:
-            if self._envStepCounter < 30000:
-                carPos = self._poscar.getNewPosition(random.randint(3, 3))  # self._poscar.len()))
-            else:
-                carPos = self._poscar.getNewPosition(random.randint(3, 3)) #self._poscar.len()))
+            carPos = self._poscar.getNewPosition(random.randint(1, 11)) 
         else:
             carPos = newCarPos
         if self._calibration:
@@ -166,9 +170,13 @@ class CrazycarGymEnv4(gym.Env):
 
         x_new, y_new, distanceFront = rayWithRadians(x, y, yaw)
 
-        x_new, y_new, distanceLeft  = rayWithRadians(x, y, yaw-math.pi/4)
+        x_new, y_new, distanceRight  = rayWithRadians(x, y, yaw-math.pi/4)
 
-        x_new, y_new, distanceRight = rayWithRadians(x, y, yaw+math.pi/4)
+        x_new, y_new, distanceLeft = rayWithRadians(x, y, yaw+math.pi/4)
+
+        x_new, y_new, distanceRightSide  = rayWithRadians(x, y, yaw-math.pi/2)
+
+        x_new, y_new, distanceLeftSide = rayWithRadians(x, y, yaw+math.pi/2)
 
 
         if self._control:
@@ -183,8 +191,7 @@ class CrazycarGymEnv4(gym.Env):
 
             return self._observation
 
-        self._observation.extend([distanceLeft, distanceFront, distanceRight])
-
+        self._observation.extend([distanceLeftSide, distanceLeft, distanceFront, distanceRight, distanceRightSide])
         return self._observation
 
     def step(self, action):
@@ -204,6 +211,7 @@ class CrazycarGymEnv4(gym.Env):
             realaction = action
 
         self._speed = realaction[0]
+        self._steerings = realaction[1]
 
         self._racecar.applyAction(realaction)
         if self._realCar is None:
@@ -270,8 +278,22 @@ class CrazycarGymEnv4(gym.Env):
 
         # closestPoints = self._p.getClosestPoints(self._racecar.racecarUniqueId, self._ballUniqueId, 10000)
 
-        reward = self._speed
-        # reward = 1
+        # reward = self._speed - abs(self._steerings)*1e-1
+        reward = 0
+
+        # carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+
+        # x, y  = carpos[0], carpos[1]
+
+        # target = self.coord_targets[self.target_idx]
+
+        # distance = ((target[0] - x) ** 2 + (target[1] - y) ** 2) ** 0.5
+
+        # reward += -distance*1e-2
+
+        # if (target[0]-0.1 <= x <= target[0]+0.1) and target[1]-0.1 <= y <= target[1]+0.1:
+        #     reward += 100
+        #     self.target_idx = (self.target_idx + 1)%12
 
         if self._carCollision(5) or self._carCollision(1) or self._carCollision(3) or self._carCollision(0) or self._carCollision(2) or self._carCollision(4):
             # self._terminate = True

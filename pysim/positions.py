@@ -41,7 +41,15 @@ class CarPosition:
                 math.pi  + 0],
             4: [x + 0.7/2 + rnd_carwidth,
                 y + 6.5 - carsize + rnd_onemeter,
-                -math.pi/2.0 + rnd_position]
+                -math.pi/2.0 + rnd_position],
+            5: [0.95, 4.75, math.pi/2],
+            6: [1.5, 0.4, 2*math.pi],
+            7: [0.4, 1.3, 1.5*math.pi],
+            8: [1.8, 2.5, 1.5*math.pi],
+            9: [1.8, 2, math.pi],
+            10: [2, 4.75, 1.5*math.pi],
+            11: [0.95, 4.75, math.pi/2]
+            
         }
         return trackdata[trackpart]
 

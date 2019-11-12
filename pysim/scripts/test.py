@@ -31,10 +31,13 @@ def main(path):
 			# predict action
 			action = model.predict(state)[0]
 			# action = (1, -1)
+			print(state)
 			print(action)
 
 			# step
 			next_state, reward, done, info = env.step(action)
+
+			print(reward)
 			state = next_state
 			ep_reward += reward
 
