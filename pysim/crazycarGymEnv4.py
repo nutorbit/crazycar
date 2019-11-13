@@ -73,8 +73,8 @@ class CrazycarGymEnv4(gym.Env):
             # action_low  = np.array([1, -60])  # 40   0   -40 -60
             # action_high = np.array([1, 60]) # 160  120  80  60
 
-            action_low  = np.array([1, -1])
-            action_high = np.array([1,  1])
+            action_low  = np.array([0, -1])
+            action_high = np.array([3,  1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
@@ -106,7 +106,9 @@ class CrazycarGymEnv4(gym.Env):
         self._racecar = crazycar.Racecar(self._p, self._origin, carPos, urdfRootPath=self._urdfRoot,
                                          timeStep=self._timeStep, calibration=self._calibration)
 
-
+        self.targetX = carPos[0]
+        self.targetY = carPos[1]
+        self.start = True
         # spawn ball
         # ballx = self._origin[0] + 0.715 / 2
         # bally = self._origin[1] + 4.0 - 0.715 / 2
@@ -278,12 +280,20 @@ class CrazycarGymEnv4(gym.Env):
 
         # closestPoints = self._p.getClosestPoints(self._racecar.racecarUniqueId, self._ballUniqueId, 10000)
 
-        # reward = self._speed - abs(self._steerings)*1e-1
-        reward = 0
+        reward = self._speed
+        # reward = 0
 
-        # carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+        carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
 
-        # x, y  = carpos[0], carpos[1]
+        x, y  = carpos[0], carpos[1]
+
+        if not (self.targetX-0.1 <= x <= self.targetX+0.1 and self.targetY-0.1 <= y <= self.targetY+0.1) and self.start == True:
+            self.start = False
+
+        if self.targetX-0.1 <= x <= self.targetX+0.1 and self.targetY-0.1 <= y <= self.targetY+0.1 and self.start == False:
+            self.start = True
+            self._terminate = True
+            # reward += 100 - self._envStepCounter*1e-4
 
         # target = self.coord_targets[self.target_idx]
 
