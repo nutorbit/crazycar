@@ -10,7 +10,7 @@ from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize, VecFrameS
 
 
 @click.command()
-@click.option('--iters', default=1e5, help='number of update')
+@click.option('--iters', default=2<<20, help='number of update')
 @click.argument('idx')
 @click.option('--description', help='description of experiment')
 @click.argument('name')
@@ -36,8 +36,8 @@ def main(iters, idx, description, name):
             ''')
 
     # init environment
-    env = CrazycarGymEnv4(renders=False, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
-    env = SubprocVecEnv([lambda: env for _ in range(N_PARALLEL)])
+    # env = CrazycarGymEnv4(renders=False, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
+    env = SubprocVecEnv([lambda: CrazycarGymEnv4(renders=False, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP) for _ in range(N_PARALLEL)])
 
     # get model
     model = get_model(env=env, name=name, idx_experiment=1)

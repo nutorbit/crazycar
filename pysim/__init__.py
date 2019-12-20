@@ -1,8 +1,8 @@
 import gym
 
-from .crazycarGymEnv import CrazycarGymEnv
-from .crazycarGymEnv2 import CrazycarGymEnv2
-from .crazycarGymEnv3 import CrazycarGymEnv3
+# from .crazycarGymEnv import CrazycarGymEnv
+# from .crazycarGymEnv2 import CrazycarGymEnv2
+# from .crazycarGymEnv3 import CrazycarGymEnv3
 from .crazycarGymEnv4 import CrazycarGymEnv4
 
 #from pysim.crazycarGymEnv import CrazycarGymEnv

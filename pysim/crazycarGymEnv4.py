@@ -58,6 +58,7 @@ class CrazycarGymEnv4(gym.Env):
         else:
             self._p = bullet_client.BulletClient()
 
+        # print('client:', self._p._client)
         self.seed()
 
         # define observation space
@@ -79,7 +80,7 @@ class CrazycarGymEnv4(gym.Env):
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
     def reset(self, newCarPos=None):
-
+        
         self._p.resetSimulation()
         self._p.setTimeStep(self._timeStep)
 
