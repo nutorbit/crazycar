@@ -11,14 +11,7 @@ RENDER_WIDTH = 960
 
 RANDOM_POSITION = False
 
-
-# config for training ppo
 N_PARALLEL = 16
 
-N_STEPS = 512
-
-N_MINIBATCHES = 8
-
-LAMBDA = 0.95
-
-GAMMA = 0.9975
+MAX_SPEED = 1
+MIN_SPEED = 1

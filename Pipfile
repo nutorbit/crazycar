@@ -14,7 +14,9 @@ py4j = "*"
 baselines = "*"
 stable-baselines = "*"
 pyglet = "*"
-mpi4py = "*"
+mpi4py = "==3.0.0"
+tensorflow = "==1.15"
+tensorflow-gpu = "==1.10.0"
 
 [requires]
 python_version = "3.7"

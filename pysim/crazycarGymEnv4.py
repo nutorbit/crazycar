@@ -15,7 +15,7 @@ import numpy as np
 from pybullet_envs.bullet import bullet_client
 from gym import spaces
 from gym.utils import seeding
-from pysim.constants import MAX_STEPS, RENDER_HEIGHT, RENDER_WIDTH
+from pysim.constants import MAX_STEPS, RENDER_HEIGHT, RENDER_WIDTH, MAX_SPEED, MIN_SPEED
 
 from . import track
 from . import crazycar
@@ -73,8 +73,8 @@ class CrazycarGymEnv4(gym.Env):
             # action_low  = np.array([1, -60])  # 40   0   -40 -60
             # action_high = np.array([1, 60]) # 160  120  80  60
 
-            action_low  = np.array([0, -1])
-            action_high = np.array([3,  1])
+            action_low  = np.array([MIN_SPEED, -1])
+            action_high = np.array([MAX_SPEED,  1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
@@ -280,8 +280,8 @@ class CrazycarGymEnv4(gym.Env):
 
         # closestPoints = self._p.getClosestPoints(self._racecar.racecarUniqueId, self._ballUniqueId, 10000)
 
-        reward = self._speed
-        # reward = 0
+        # reward = self._speed
+        reward = 0
 
         carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
 
