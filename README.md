@@ -2,10 +2,8 @@
 
 ## Setup Environment
 
-You need to install [pipenv](https://github.com/pypa/pipenv) for create virtual environment and install depedencies package.
-
 ```zsh
-pipenv shell
+pip install -r requirements.txt
 ```
 
 ## Running the code
@@ -13,25 +11,24 @@ pipenv shell
 **training a model.**
 
 ```zsh
-python -m pysim.scripts.train --load=PATH --nupdate=100 OUTPUTMODEL
+python -m pysim.scripts.train --iters=NUM idx --description="test" name
 ```
 
-`load` is a optional argument if you set `PATH` to somepath. You will load model from `PATH`.
+`iters` is a number of episode (`NUM`) for training the agent.
 
-`nupdate` default is 100. This argument indicate number of update.
+`idx` is a number of experiments.
 
-`OUTPUTMODEL` is the name of output.
+`description` is a word to describe the experiment.
+
+`name` is a model name (`ppo1`, `sac`, `td3`, `ddpg`).
+
 
 **testing a model.**
 
 ```zsh
-python -m pysim.scripts.test PATH2MODEL
+python -m pysim.scripts.test model PATH
 ```
 
-`PATH2MODEL` is path to model that you want to test.
+`model` is a model name (`ppo1`, `sac`, `td3`, `ddpg).
 
-**manual control.**
-
-```zsh
-python -m pysim.scripts.control
-```
+`PATH` is path to model that you want to test.
