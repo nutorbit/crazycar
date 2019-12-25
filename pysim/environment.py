@@ -1,9 +1,3 @@
-import os, inspect
-
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(os.path.dirname(currentdir))
-os.sys.path.insert(0, parentdir)
-
 import math
 import gym
 import time
@@ -15,14 +9,14 @@ import numpy as np
 from pybullet_envs.bullet import bullet_client
 from gym import spaces
 from gym.utils import seeding
-from pysim.constants import MAX_STEPS, RENDER_HEIGHT, RENDER_WIDTH, MAX_SPEED, MIN_SPEED
+from pysim.constants import MAX_STEPS, RENDER_HEIGHT, RENDER_WIDTH, MAX_SPEED, MIN_SPEED, RANDOM_POSITION
 
-from . import track
-from . import crazycar
-from . import positions
+from pysim import track
+from pysim import crazycar
+from pysim import positions
 
 
-class CrazycarGymEnv4(gym.Env):
+class CrazyCar(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
         'video.frames_per_second': 50
@@ -33,24 +27,18 @@ class CrazycarGymEnv4(gym.Env):
                  actionRepeat=2,
                  isDiscrete=False,
                  renders=False,
-                 calibration=False,
-                 origin=[0, 0, 0],
-                 selfcontrol=False):
+                 origin=[0, 0, 0]):
 
         self._timeStep = 0.005
         self._urdfRoot = urdfRoot
         self._actionRepeat = actionRepeat
         self._observation = []
-        self._ballUniqueId = -1
         self._envStepCounter = 0
         self._renders = renders
         self._isDiscrete = isDiscrete
-        self._realCar = None
-        self._calibration = calibration
         self._origin = origin
         self._collisionCounter = 0
         self._poscar = positions.CarPosition(origin)
-        self._control = selfcontrol
         self._speed = 0
 
         if self._renders:
@@ -58,7 +46,6 @@ class CrazycarGymEnv4(gym.Env):
         else:
             self._p = bullet_client.BulletClient()
 
-        # print('client:', self._p._client)
         self.seed()
 
         # define observation space
@@ -69,13 +56,10 @@ class CrazycarGymEnv4(gym.Env):
 
         # define action space
         if (isDiscrete):
-            self.action_space = spaces.Discrete(8) #91
+            self.action_space = spaces.Discrete(9) #91
         else:
-            # action_low  = np.array([1, -60])  # 40   0   -40 -60
-            # action_high = np.array([1, 60]) # 160  120  80  60
-
-            action_low  = np.array([MIN_SPEED, -1])
-            action_high = np.array([MAX_SPEED,  1])
+            action_low  = np.array([-1])
+            action_high = np.array([1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
@@ -85,39 +69,26 @@ class CrazycarGymEnv4(gym.Env):
         self._p.setTimeStep(self._timeStep)
 
         # spawn plane
-        self._planeId = self._p.loadURDF(os.path.join(currentdir, "data/plane.urdf"))
+        self._planeId = self._p.loadURDF("./pysim/data/plane.urdf")
 
         # spawn race track
         track.createRaceTrack(self._p, self._origin)
 
-        # set target TODO
-        self.coord_targets = [(0.5, 6), (0.15, 3.75), (1.3, 3.75), (0.95, 4.75), (2, 4.75), (2, 4.75), (2, 2.5), (1, 2), (0.25, 1), (1.5, 0.1), (2.5, 1), (2.5, 5.5)]
-        self.target_idx = 0
-        # for obj in self.coord_targets:
-        #     track.createObj(self._p, self._origin, *obj)
-
         # spawn car
         if newCarPos is None:
-            carPos = self._poscar.getNewPosition(random.randint(1, 11)) 
+            if RANDOM_POSITION:
+                carPos = self._poscar.getNewPosition(random.randint(1, 11))
+            else:
+                carPos = self._poscar.getNewPosition(random.randint(1, 1))
         else:
             carPos = newCarPos
-        if self._calibration:
-            carPos = [2.70, 0.5, 0]
 
         self._racecar = crazycar.Racecar(self._p, self._origin, carPos, urdfRootPath=self._urdfRoot,
-                                         timeStep=self._timeStep, calibration=self._calibration)
+                                         timeStep=self._timeStep, calibration=False)
 
         self.targetX = carPos[0]
         self.targetY = carPos[1]
         self.start = True
-        # spawn ball
-        # ballx = self._origin[0] + 0.715 / 2
-        # bally = self._origin[1] + 4.0 - 0.715 / 2
-        # ballz = 0.0
-
-        # self._ballUniqueId = self._p.loadURDF(os.path.join(self._urdfRoot, "sphere2.urdf"), [ballx, bally, ballz],
-        #                                       globalScaling=0.60)
-        # self._p.changeDynamics(self._ballUniqueId, -1, mass=0)
 
         # reset common variables
         for i in range(100):
@@ -141,8 +112,6 @@ class CrazycarGymEnv4(gym.Env):
     def getExtendedObservation(self):
         self._observation = []
         carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-        # ballpos, ballorn = self._p.getBasePositionAndOrientation(self._ballUniqueId)
-        # ballPosInCar, ballOrnInCar = self._p.multiplyTransforms(invCarPos, invCarOrn, ballpos, ballorn)
 
         posEuler = self._p.getEulerFromQuaternion(carorn)
 
@@ -169,7 +138,7 @@ class CrazycarGymEnv4(gym.Env):
             except:
                 print('not found object')
 
-                return 0, 0, -1
+                return 0, 0, 5
 
         x_new, y_new, distanceFront = rayWithRadians(x, y, yaw)
 
@@ -181,56 +150,34 @@ class CrazycarGymEnv4(gym.Env):
 
         x_new, y_new, distanceLeftSide = rayWithRadians(x, y, yaw+math.pi/2)
 
-
-        if self._control:
-
-            basePos, orn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-
-            viewMatrix        = self._p.computeViewMatrixFromYawPitchRoll(basePos, 2.5, -90, -40, 0, 2)
-            projectionMatrix  = [1.0825318098068237, 0.0, 0.0, 0.0, 0.0, 1.732050895690918, 0.0, 0.0, 0.0, 0.0, -1.0002000331878662, -1.0, 0.0, 0.0, -0.020002000033855438, 0.0]
-            img = self._p.getCameraImage(200, 200, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix)[2]
-
-            self._observation.extend([img, carpos[0], carpos[1], yaw, distanceLeft, distanceFront, distanceRight])
-
-            return self._observation
-
         self._observation.extend([distanceLeftSide, distanceLeft, distanceFront, distanceRight, distanceRightSide])
         return self._observation
 
     def step(self, action):
-        # action[1] += 100
-        # print(action)
         if (self._renders):
             basePos, orn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
             self._p.resetDebugVisualizerCamera(2.5, -90, -40, basePos)
 
         if (self._isDiscrete):
-            fwd = [1, 1, 1, 1, 1, 1, 1, 1]
-            steerings = [40, 60, 75, 105, 106, 136, 151, 171]
+            fwd = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+            steerings = [-1, -0.75, -0.45, -0.25, 0.00, 0.25, 0.45, 0.75, 1]
             forward = fwd[action]
             steer = steerings[action]
             realaction = [forward, steer]
         else:
-            realaction = action
-
-        self._speed = realaction[0]
-        self._steerings = realaction[1]
+            realaction = [1, action[0]]
+            # realaction = action
 
         self._racecar.applyAction(realaction)
-        if self._realCar is None:
-            for i in range(self._actionRepeat):
-                self._p.stepSimulation()
-                if self._renders:
-                    time.sleep(self._timeStep)
-                self._observation = self.getExtendedObservation()
 
-                if self._termination():
-                    break
-                self._envStepCounter += 1
-        else:
-            self._realCar.setSteering(realaction[1])
+        for i in range(self._actionRepeat):
             self._p.stepSimulation()
+            if self._renders:
+                time.sleep(self._timeStep)
             self._observation = self.getExtendedObservation()
+
+            if self._termination():
+                break
             self._envStepCounter += 1
 
         reward = self._reward()
@@ -268,56 +215,26 @@ class CrazycarGymEnv4(gym.Env):
         aabbmin, aabbmax = self._p.getAABB(self._racecar.racecarUniqueId,
                                            carLinkIndex)  # 5==red block; 1==right wheel; 3==left wheel
         objs = self._p.getOverlappingObjects(aabbmin, aabbmax)
-        # print("planeid={}, ballid={}, carid={}".format(self._planeId, self._ballUniqueId, self._racecar.racecarUniqueId))
         # print(objs)
         for x in objs:
-            if (x[1] == -1 and not (
-                    x[0] == self._racecar.racecarUniqueId or x[0] == self._ballUniqueId or x[0] == self._planeId)):
-                # print("collision with: {}".format(x))
+            if (x[1] == -1 and not (x[0] == self._racecar.racecarUniqueId or x[0] == self._planeId)):
                 return True
         return False
 
     def _reward(self):
 
-        # closestPoints = self._p.getClosestPoints(self._racecar.racecarUniqueId, self._ballUniqueId, 10000)
-
-        # reward = self._speed
         reward = 0
 
         carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
 
         x, y  = carpos[0], carpos[1]
 
-        if not (self.targetX-0.1 <= x <= self.targetX+0.1 and self.targetY-0.1 <= y <= self.targetY+0.1) and self.start == True:
-            self.start = False
-
-        if self.targetX-0.1 <= x <= self.targetX+0.1 and self.targetY-0.1 <= y <= self.targetY+0.1 and self.start == False:
-            self.start = True
-            self._terminate = True
-            # reward += 100 - self._envStepCounter*1e-4
-
-        # target = self.coord_targets[self.target_idx]
-
-        # distance = ((target[0] - x) ** 2 + (target[1] - y) ** 2) ** 0.5
-
-        # reward += -distance*1e-2
-
-        # if (target[0]-0.1 <= x <= target[0]+0.1) and target[1]-0.1 <= y <= target[1]+0.1:
-        #     reward += 100
-        #     self.target_idx = (self.target_idx + 1)%12
-
         if self._carCollision(5) or self._carCollision(1) or self._carCollision(3) or self._carCollision(0) or self._carCollision(2) or self._carCollision(4):
-            # self._terminate = True
-            # return 0
-            reward = -10
+            reward = -1
             self._collisionCounter += 1
-
+            
         if self._collisionCounter >= 10:
             self._terminate = True
-
-        # if -closestPoints[0][8] >= -0.05:
-        #     self._terminate = True
-        #     reward += 1000000
 
         return reward
 

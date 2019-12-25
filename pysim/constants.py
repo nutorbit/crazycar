@@ -14,4 +14,6 @@ RANDOM_POSITION = False
 N_PARALLEL = 16
 
 MAX_SPEED = 1
-MIN_SPEED = 1
+MIN_SPEED = -1
+
+LOG_DIR = './logs/tmp/'

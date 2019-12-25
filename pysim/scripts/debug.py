@@ -1,10 +1,10 @@
 import click
 
-from pysim import CrazycarGymEnv4
+from pysim.environment import CrazyCar
 from pysim.constants import *
 
 def main():
-    env = CrazycarGymEnv4(renders=True, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
+    env = CrazyCar(renders=True, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
 
     # reset 
     state = env.reset()

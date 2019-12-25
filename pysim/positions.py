@@ -8,8 +8,6 @@ import math
 
 import numpy as np
 
-from pysim.constants import RANDOM_POSITION
-
 class CarPosition:
 
     def __init__(self, origin, calibration=False):
@@ -22,14 +20,9 @@ class CarPosition:
         y = self._origin[1]
         z = self._origin[2] + 0.03
         
-        if RANDOM_POSITION:
-            rnd_onemeter = random.random() * 1.0 - 0.5
-            rnd_carwidth = random.random() * 0.5 - 0.25
-            rnd_position = random.random() * 1.4 - 0.7  # ~ +/-40 grad
-        else:
-            rnd_onemeter = 0
-            rnd_carwidth = 0
-            rnd_position = 0
+        rnd_onemeter = 0
+        rnd_carwidth = 0
+        rnd_position = 0
 
         trackdata = {
             1: [x + 2.9 - 0.7/2, y + 0.7, math.pi/2.0],                              # start position
