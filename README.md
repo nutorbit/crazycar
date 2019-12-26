@@ -2,7 +2,7 @@
 
 ## Setup Environment
 
-```zsh
+```shell
 pip install -r requirements.txt
 ```
 
