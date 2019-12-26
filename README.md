@@ -10,8 +10,8 @@ $ pip install -r requirements.txt
 
 **training a model.**
 
-```zsh
-python -m pysim.scripts.train --iters=NUM idx --description="test" name
+```shell
+$ python -m pysim.scripts.train --iters=NUM idx --description="test" name
 ```
 
 `iters` is a number of episode (`NUM`) for training the agent.
@@ -25,8 +25,8 @@ python -m pysim.scripts.train --iters=NUM idx --description="test" name
 
 **testing a model.**
 
-```zsh
-python -m pysim.scripts.test model PATH
+```shell
+$ python -m pysim.scripts.test model PATH
 ```
 
 `model` is a model name (`ppo1`, `sac`, `td3`, `ddpg).
