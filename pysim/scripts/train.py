@@ -18,10 +18,11 @@ best_mean_reward, n_steps = -np.inf, 0
 @click.argument('name')
 def main(iters, idx, description, name):
 
+    if not os.path.exists(f'./models/experiment_{idx}/'):
+        os.makedirs(f'./models/experiment_{idx}')
+
     # write description
     if description:
-        if not os.path.exists(f'./models/experiment_{idx}/'):
-            os.makedirs(f'./models/experiment_{idx}')
         with open(f'./models/experiment_{idx}/README.md', 'w') as f:
             f.write(
             f'''
