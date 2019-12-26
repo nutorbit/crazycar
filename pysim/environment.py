@@ -12,7 +12,7 @@ from gym.utils import seeding
 from pysim.constants import MAX_STEPS, RENDER_HEIGHT, RENDER_WIDTH, MAX_SPEED, MIN_SPEED, RANDOM_POSITION
 
 from pysim import track
-from pysim import crazycar
+from pysim import agent
 from pysim import positions
 
 
@@ -83,12 +83,8 @@ class CrazyCar(gym.Env):
         else:
             carPos = newCarPos
 
-        self._racecar = crazycar.Racecar(self._p, self._origin, carPos, urdfRootPath=self._urdfRoot,
+        self._racecar = agent.Racecar(self._p, self._origin, carPos, urdfRootPath=self._urdfRoot,
                                          timeStep=self._timeStep, calibration=False)
-
-        self.targetX = carPos[0]
-        self.targetY = carPos[1]
-        self.start = True
 
         # reset common variables
         for i in range(100):

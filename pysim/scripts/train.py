@@ -44,7 +44,6 @@ def main(iters, idx, description, name):
     # get model
     model = get_model(name=name, idx_experiment=idx)
 
-
     def callback(_locals, _globals):
 
         global n_steps, best_mean_reward
