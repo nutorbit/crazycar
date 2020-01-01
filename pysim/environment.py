@@ -9,7 +9,7 @@ import numpy as np
 from pybullet_envs.bullet import bullet_client
 from gym import spaces
 from gym.utils import seeding
-from pysim.constants import MAX_STEPS, RENDER_HEIGHT, RENDER_WIDTH, MAX_SPEED, MIN_SPEED, RANDOM_POSITION
+from pysim.constants import MAX_STEPS, RENDER_HEIGHT, RENDER_WIDTH, MAX_SPEED, MIN_SPEED, RANDOM_POSITION, DISTANCE_SENSORS
 
 from pysim import track
 from pysim import agent
@@ -49,8 +49,8 @@ class CrazyCar(gym.Env):
         self.seed()
 
         # define observation space
-        observationDim = 5
-        observation_high = np.full(observationDim, 5)
+        observationDim = len(DISTANCE_SENSORS)
+        observation_high = np.full(observationDim, 10)
         observation_low = np.zeros(observationDim)
         self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
 
@@ -94,7 +94,7 @@ class CrazyCar(gym.Env):
         self._envStepCounter = 0
         self._terminate = False
         self._collisionCounter = 0
-        self._observation = self.getExtendedObservation()
+        self._observation = self._racecar.getSensor()
 
         return np.array(self._observation)
 
@@ -104,50 +104,6 @@ class CrazyCar(gym.Env):
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
-
-    def getExtendedObservation(self):
-        self._observation = []
-        carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-
-        posEuler = self._p.getEulerFromQuaternion(carorn)
-
-        yaw = posEuler[2]
-
-        x, y  = carpos[0], carpos[1]
-
-        def rayWithRadians(x, y, radians, R=[3, 3]):
-
-            # calculate position to rayTest
-            x_new = R[0] * math.cos(radians) + x
-            y_new = R[1] * math.sin(radians) + y
-
-            try:
-                # position ray hit
-                _, _, _, pos, _ = self._p.rayTest([x, y, 0], [x_new, y_new, 0])[0]
-
-                # distance from car
-                distance = ((pos[0] - x) ** 2 + (pos[1] - y) ** 2) ** 0.5
-
-                # track.createObj(self._p, self._origin, pos[0], pos[1])
-
-                return x_new, y_new, distance
-            except:
-                print('not found object')
-
-                return 0, 0, 5
-
-        x_new, y_new, distanceFront = rayWithRadians(x, y, yaw)
-
-        x_new, y_new, distanceRight  = rayWithRadians(x, y, yaw-math.pi/4)
-
-        x_new, y_new, distanceLeft = rayWithRadians(x, y, yaw+math.pi/4)
-
-        x_new, y_new, distanceRightSide  = rayWithRadians(x, y, yaw-math.pi/2)
-
-        x_new, y_new, distanceLeftSide = rayWithRadians(x, y, yaw+math.pi/2)
-
-        self._observation.extend([distanceLeftSide, distanceLeft, distanceFront, distanceRight, distanceRightSide])
-        return self._observation
 
     def step(self, action):
         if (self._renders):
@@ -170,7 +126,7 @@ class CrazyCar(gym.Env):
             self._p.stepSimulation()
             if self._renders:
                 time.sleep(self._timeStep)
-            self._observation = self.getExtendedObservation()
+            self._observation = self._racecar.getSensor()
 
             if self._termination():
                 break
