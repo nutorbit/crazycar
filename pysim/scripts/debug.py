@@ -9,10 +9,9 @@ def main():
     # reset 
     state = env.reset()
 
-    print(state)
-
     while True: 
-        pass
+        obs, reward, done, info = env.step([0, 0])
+        print(obs)
 
 
 if __name__ == '__main__':

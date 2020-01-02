@@ -48,8 +48,8 @@ class Racecar:
         #for i in range (self._p.getNumJoints(car)):
         #    print (self._p.getJointInfo(car,i))
         for wheel in range(self._p.getNumJoints(car)):
-                self._p.setJointMotorControl2(car,wheel,self._p.VELOCITY_CONTROL,targetVelocity=0,force=0)
-                self._p.getJointInfo(car,wheel)
+            self._p.setJointMotorControl2(car,wheel,self._p.VELOCITY_CONTROL,targetVelocity=0,force=0)
+            self._p.getJointInfo(car,wheel)
 
         #self._p.setJointMotorControl2(car,10,self._p.VELOCITY_CONTROL,targetVelocity=1,force=10)
         c = self._p.createConstraint(car,9,car,11,jointType=self._p.JOINT_GEAR,jointAxis =[0,1,0],parentFramePosition=[0,0,0],childFramePosition=[0,0,0])
