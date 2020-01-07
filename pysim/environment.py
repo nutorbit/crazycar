@@ -63,8 +63,8 @@ class CrazyCar(gym.Env):
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
-    def reset(self, newCarPos=None):
-        
+    def _reset(self):
+
         self._p.resetSimulation()
         self._p.setTimeStep(self._timeStep)
 
@@ -77,6 +77,20 @@ class CrazyCar(gym.Env):
         # spawn race track
         track.createRaceTrack(self._p, self._origin)
 
+        # reset common variables
+        for i in range(100):
+            self._p.stepSimulation()
+
+        self._p.setGravity(0, 0, -10)
+        self._envStepCounter = 0
+        self._terminate = False
+        self._collisionCounter = 0
+
+    def reset(self, newCarPos=None):
+        
+        # reset
+        self._reset()
+
         # spawn car
         if newCarPos is None:
             if RANDOM_POSITION:
@@ -88,15 +102,8 @@ class CrazyCar(gym.Env):
 
         self._racecar = agent.Racecar(self._p, self._origin, carPos, urdfRootPath=self._urdfRoot,
                                          timeStep=self._timeStep, calibration=False)
-
-        # reset common variables
-        for i in range(100):
-            self._p.stepSimulation()
-
-        self._p.setGravity(0, 0, -10)
-        self._envStepCounter = 0
-        self._terminate = False
-        self._collisionCounter = 0
+        
+        # get observation
         self._observation = self._racecar.getSensor()
 
         return np.array(self._observation)
@@ -124,9 +131,6 @@ class CrazyCar(gym.Env):
 
     def step(self, action):
         if (self._renders):
-            
-            basePos, orn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-            self._p.resetDebugVisualizerCamera(2.5, -90, -40, basePos)
 
             now_time = time.time()
             if now_time-self._lastTime>.3:
@@ -158,31 +162,8 @@ class CrazyCar(gym.Env):
 
         reward = self._reward()
         done   = self._termination()
-        # print("len=%r" % len(self._observation))
-        # print("{}".format(self._observation))
 
         return np.array(self._observation), reward, done, {}
-
-    def render(self, mode='human', close=False):
-        if mode != "rgb_array":
-            return np.array([])
-        base_pos, orn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-        view_matrix = self._p.computeViewMatrixFromYawPitchRoll(
-            cameraTargetPosition=base_pos,
-            distance=self._cam_dist,
-            yaw=self._cam_yaw,
-            pitch=self._cam_pitch,
-            roll=0,
-            upAxisIndex=2)
-        proj_matrix = self._p.computeProjectionMatrixFOV(
-            fov=60, aspect=float(RENDER_WIDTH) / RENDER_HEIGHT,
-            nearVal=0.1, farVal=100.0)
-        (_, _, px, _, _) = self._p.getCameraImage(
-            width=RENDER_WIDTH, height=RENDER_HEIGHT, viewMatrix=view_matrix,
-            projectionMatrix=proj_matrix, renderer=pybullet.ER_BULLET_HARDWARE_OPENGL)
-        rgb_array = np.array(px)
-        rgb_array = rgb_array[:, :, :3]
-        return rgb_array
 
     def _termination(self):
         return self._envStepCounter > MAX_STEPS or self._terminate
@@ -214,3 +195,74 @@ class CrazyCar(gym.Env):
 
         return reward
 
+
+class MultiCar(CrazyCar):
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def reset(self):
+
+        # reset
+        self._reset()
+
+        carPos1 = [2.9 - 0.7/2, 0.8, math.pi/2.0]
+        carPos2 = [2.9 - 0.7/2, 0.5, math.pi/2.0]
+
+        carPoses = [carPos1, carPos2]
+
+        # 2 agent
+        self._racecars = [ 
+            agent.Racecar(self._p, self._origin, carPos, urdfRootPath=self._urdfRoot, timeStep=self._timeStep, calibration=False)
+            for carPos in carPoses 
+        ]
+
+        return self.getObservation()
+
+    def getObservation(self):
+        return [racecar.getSensor() for racecar in self._racecars]
+
+    def step(self, action):
+        # if (self._renders):
+
+        #     now_time = time.time()
+        #     if now_time-self._lastTime>.3:
+        #         _ = self.cameraImage()
+
+        for racecar, realaction in zip(self._racecars, action):
+
+            racecar.applyAction(realaction)
+
+            for i in range(self._actionRepeat):
+                self._p.stepSimulation()
+
+                if self._termination():
+                    break
+                self._envStepCounter += 1
+
+
+            reward = self._reward()
+            done   = self._termination()
+
+        observation = self.getObservation()
+
+        return observation, reward, done, {}
+
+    def _carCollision(self, carLinkIndex):
+        res = []
+        for racecar in self._racecars:
+            isCheck = False
+            aabbmin, aabbmax = self._p.getAABB(racecar.racecarUniqueId,
+                                            carLinkIndex)  # 5==red block; 1==right wheel; 3==left wheel
+            objs = self._p.getOverlappingObjects(aabbmin, aabbmax)
+            # print(objs)
+            for x in objs:
+                if (x[1] == -1 and not (x[0] == racecar.racecarUniqueId or x[0] == self._planeId)):
+                    res.append(True)
+                    isCheck = True
+            if not isCheck:
+                res.append(False)
+        return res
+
+    def _reward(self):
+        pass
