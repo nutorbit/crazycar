@@ -1,6 +1,3 @@
-import os,  inspect
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-
 import copy
 import math
 import time
@@ -43,7 +40,7 @@ class Racecar:
         carStartOrientation90 = self._p.getQuaternionFromEuler([0,0,math.pi/2])
         carStartOrientation00 = self._p.getQuaternionFromEuler([0,0,0])
 #        carId = self._p.loadURDF("data/racecar/racecar.urdf", [carx, cary, z], carStartOrientation90, globalScaling=scale)
-        car = self._p.loadURDF(os.path.join(currentdir, "data/racecar/racecar_differential.urdf"), [carx, cary, z], carStartOrientation, globalScaling=scale,useFixedBase=False)
+        car = self._p.loadURDF("./pysim/data/racecar/racecar_differential.urdf", [carx, cary, z], carStartOrientation, globalScaling=scale,useFixedBase=False)
 #        car = self._p.loadURDF(os.path.join(self.urdfRootPath,"racecar/racecar_differential.urdf"), [0,0,.2],useFixedBase=False)
         self.racecarUniqueId = car
         #for i in range (self._p.getNumJoints(car)):
@@ -201,14 +198,6 @@ class Racecar:
         #print(targetVelocity)
         
         steeringAngle = motorCommands[1]*self.steeringMultiplier
-        # if (motorCommands[1] < 106):
-        #     steeringAngle = (-4.0/709.0 * motorCommands[1] + 285.0/478.0)
-        # else:
-        #     steeringAngle = -(4.0/709.0 * motorCommands[1] - 285.0/478.0)
-        #print("steeringAngle")
-        #print("{} => {}".format(motorCommands[1], steeringAngle))
-        #print("maxForce")
-        #print(self.maxForce)
 
         for motor in self.motorizedwheels:
             self._p.setJointMotorControl2(self.racecarUniqueId,motor,self._p.VELOCITY_CONTROL,targetVelocity=targetVelocity,force=self.maxForce)

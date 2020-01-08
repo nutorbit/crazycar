@@ -1,6 +1,3 @@
-import os,  inspect
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-
 import pybullet as p
 import time
 import math
@@ -19,7 +16,7 @@ def createRaceCar(bullet_client, origin):
      carStartOrientation90 = p.getQuaternionFromEuler([0,0,math.pi/2])
      carStartOrientation00 = p.getQuaternionFromEuler([0,0,0])
 #     carId = p.loadURDF("data/racecar/racecar.urdf", [carx, cary, z], carStartOrientation90, globalScaling=scale)
-     carId = p.loadURDF(os.path.join(currentdir, "data/racecar/racecar_differential.urdf"), [carx, cary, z], carStartOrientation90, globalScaling=scale)
+     carId = p.loadURDF("./pysim/data/racecar/racecar_differential.urdf", [carx, cary, z], carStartOrientation90, globalScaling=scale)
 ## Test car size!
 #     carId = p.loadURDF("data/racecar/racecar.urdf", [carx, cary, z], carStartOrientation90, globalScaling=scale)
 ##     p.resetDebugVisualizerCamera(1,-90,-0, [carx, cary, z])
@@ -35,7 +32,7 @@ def createRaceCar(bullet_client, origin):
 def createObj(bullet_client, origin, x, y, z=0):
      p = bullet_client
      startOrientation000 = p.getQuaternionFromEuler([0,0,0])
-     elem2900p1 = p.loadURDF(os.path.join(currentdir, "data/test.urdf"), [x, y, z], startOrientation000)
+     elem2900p1 = p.loadURDF("./pysim/data/test.urdf", [x, y, z], startOrientation000)
 
 def createRaceTrack(bullet_client, origin):
      p = bullet_client
@@ -59,24 +56,24 @@ def createRaceTrack(bullet_client, origin):
      # sensor     = p.loadSDF(os.path.join(currentdir, "data/sensor.sdf"))
 
 
-     elem2900p1 = p.loadURDF(os.path.join(currentdir, "data/elem2900.urdf"), [x, y, z], startOrientation000)
-     elem6500p1 = p.loadURDF(os.path.join(currentdir, "data/elem6500.urdf"), [x + 2.9/2 - width/2, y+6.5/2 + width/2, z], startOrientation090)
-     elem2900p2 = p.loadURDF(os.path.join(currentdir, "data/elem2900.urdf"), [x - width, y+6.5, z], startOrientation000)
-     elem6500p2 = p.loadURDF(os.path.join(currentdir, "data/elem6500.urdf"), [x - 2.9/2 - width/2, y+6.5/2 - width/2, z], startOrientation090)
+     elem2900p1 = p.loadURDF("./pysim/data/elem2900.urdf", [x, y, z], startOrientation000)
+     elem6500p1 = p.loadURDF("./pysim/data/elem6500.urdf", [x + 2.9/2 - width/2, y+6.5/2 + width/2, z], startOrientation090)
+     elem2900p2 = p.loadURDF("./pysim/data/elem2900.urdf", [x - width, y+6.5, z], startOrientation000)
+     elem6500p2 = p.loadURDF("./pysim/data/elem6500.urdf", [x - 2.9/2 - width/2, y+6.5/2 - width/2, z], startOrientation090)
      # inside1
-     elem0200p1 = p.loadURDF(os.path.join(currentdir, "data/elem0200.urdf"), [x - 1.4/2 - width, y+0.7+0.8 + width/2, z], startOrientation000)
-     elem0800p1 = p.loadURDF(os.path.join(currentdir, "data/elem0800.urdf"), [x - 1.4/2 + width/2, y+0.7+0.8/2, z], startOrientation090)
-     elem1400p1 = p.loadURDF(os.path.join(currentdir, "data/elem1400.urdf"), [x + width, y+0.7+width/2, z], startOrientation000)
-     elem5000p1 = p.loadURDF(os.path.join(currentdir, "data/elem5000.urdf"), [x + width - width/2 + 1.4/2, y+0.7+width +5.0/2, z], startOrientation090)
-     elem1400p2 = p.loadURDF(os.path.join(currentdir, "data/elem1400.urdf"), [x + width - width, y+0.7+width/2+5.0, z], startOrientation000)
-     elem2000p1 = p.loadURDF(os.path.join(currentdir, "data/elem2000.urdf"), [x + width - width/2 - 0.7, y+0.7+5.0-2/2, z], startOrientation090)
+     elem0200p1 = p.loadURDF("./pysim/data/elem0200.urdf", [x - 1.4/2 - width, y+0.7+0.8 + width/2, z], startOrientation000)
+     elem0800p1 = p.loadURDF("./pysim/data/elem0800.urdf", [x - 1.4/2 + width/2, y+0.7+0.8/2, z], startOrientation090)
+     elem1400p1 = p.loadURDF("./pysim/data/elem1400.urdf", [x + width, y+0.7+width/2, z], startOrientation000)
+     elem5000p1 = p.loadURDF("./pysim/data/elem5000.urdf", [x + width - width/2 + 1.4/2, y+0.7+width +5.0/2, z], startOrientation090)
+     elem1400p2 = p.loadURDF("./pysim/data/elem1400.urdf", [x + width - width, y+0.7+width/2+5.0, z], startOrientation000)
+     elem2000p1 = p.loadURDF("./pysim/data/elem2000.urdf", [x + width - width/2 - 0.7, y+0.7+5.0-2/2, z], startOrientation090)
      #inside2
-     elem2600p1 = p.loadURDF(os.path.join(currentdir, "data/elem2600.urdf"), [x - 2.9/2 + 1.4 + width/2, y+0.7+width+5.0-width-0.78-2.6/2, z], startOrientation090)
-     elem1400p3 = p.loadURDF(os.path.join(currentdir, "data/elem1400.urdf"), [x - 2.9/2 + 1.4/2, y+0.7+width/2+5.0-2.6/2-0.78-2.6/2, z], startOrientation000)
+     elem2600p1 = p.loadURDF("./pysim/data/elem2600.urdf", [x - 2.9/2 + 1.4 + width/2, y+0.7+width+5.0-width-0.78-2.6/2, z], startOrientation090)
+     elem1400p3 = p.loadURDF("./pysim/data/elem1400.urdf", [x - 2.9/2 + 1.4/2, y+0.7+width/2+5.0-2.6/2-0.78-2.6/2, z], startOrientation000)
 
      #corners
-     elem0720p1 = p.loadURDF(os.path.join(currentdir, "data/elem0720.urdf"), [x + width + 1.4/2 - d - width/2, y+0.7+width/2+d, z], startOrientation045)
-     elem0720p2 = p.loadURDF(os.path.join(currentdir, "data/elem0720.urdf"), [x + width - 1.4/2 + d - width/2, y+0.7+width/2+d, z], startOrientation135)
+     elem0720p1 = p.loadURDF("./pysim/data/elem0720.urdf", [x + width + 1.4/2 - d - width/2, y+0.7+width/2+d, z], startOrientation045)
+     elem0720p2 = p.loadURDF("./pysim/data/elem0720.urdf", [x + width - 1.4/2 + d - width/2, y+0.7+width/2+d, z], startOrientation135)
      
      return [x, y, z]
 
