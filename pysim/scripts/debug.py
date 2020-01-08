@@ -12,7 +12,7 @@ def main():
 
     while True: 
         obs, reward, done, info = env.step([[0.2, 0], [0.11, 0]])
-        # obs, reward, done, info = env.step([0.11, 0])
+        # obs, reward, done, info = env.step([2, 0])
         print(obs)
 
 

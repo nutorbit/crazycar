@@ -12,7 +12,7 @@ from pysim import track
 
 class Racecar:
 
-    def __init__(self, bullet_client, origin, carpos, urdfRootPath='', timeStep=0.01, calibration=False):
+    def __init__(self, bullet_client, origin, carpos, planeId, urdfRootPath='', timeStep=0.01, calibration=False):
         self.urdfRootPath = urdfRootPath
         self.timeStep = timeStep
         self._p = bullet_client
@@ -25,6 +25,7 @@ class Racecar:
         self.rayMissColor = [0,1,0]
         self._time = time.time()
         self._sensor = []
+        self._planeId = planeId
         self.reset()
 
     def reset(self):
@@ -162,6 +163,33 @@ class Racecar:
         observation.extend(list(orn))
 
         return observation
+
+    def getCameraImage(self):
+        ls = self._p.getLinkState(self.racecarUniqueId, 5, computeForwardKinematics=True)
+        camPos = ls[0]
+        camOrn = ls[1]
+        camMat = self._p.getMatrixFromQuaternion(camOrn)
+        upVector = [0,0,1]
+        forwardVec = [camMat[0],camMat[3],camMat[6]]
+        camUpVec =  [camMat[2],camMat[5],camMat[8]]
+        camTarget = [camPos[0]+forwardVec[0]*10,camPos[1]+forwardVec[1]*10,camPos[2]+forwardVec[2]*10]
+        camUpTarget = [camPos[0]+camUpVec[0],camPos[1]+camUpVec[1],camPos[2]+camUpVec[2]]
+        viewMat = self._p.computeViewMatrix(camPos, camTarget, camUpVec)
+        projMat = (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0000200271606445, -1.0, 0.0, 0.0, -0.02000020071864128, 0.0)
+        return self._p.getCameraImage(320,200,viewMatrix=viewMat,projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2]
+
+    def _isCollision(self, part_id):
+        aabbmin, aabbmax = self._p.getAABB(self.racecarUniqueId,
+                                           part_id)  # 5==red block; 1==right wheel; 3==left wheel
+        objs = self._p.getOverlappingObjects(aabbmin, aabbmax)
+        # print(objs)
+        for x in objs:
+            if (x[1] == -1 and not (x[0] == self.racecarUniqueId or x[0] == self._planeId)):
+                return True
+        return False
+
+    def isCollision(self):
+        return any([self._isCollision(i) for i in range(1, 6)])
 
     def applyAction(self, motorCommands):
 
