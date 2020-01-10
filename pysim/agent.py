@@ -4,7 +4,7 @@ import time
 
 import numpy as np
 
-from pysim.constants import DISTANCE_SENSORS
+from pysim.constants import *
 from pysim import track
 
 class Racecar:
@@ -110,58 +110,39 @@ class Racecar:
                 # track.createObj(self._p, self._origin, pos[0], pos[1])
 
                 if hit == 1.: # miss
-                    return (x_new, y_new), 100
+                    return (x_new, y_new), 10
                 else:
                     return (pos[0], pos[1]), distance
             except Exception as e:
                 print('not found object', e)
 
-                return (x_new, x_new), 100
+                return (x_new, x_new), 10
 
         obs = []
 
         now_time = time.time()
 
-        # disp = True
-        # if (now_time - self._time) > .3:
-        #     disp = True
-
-        for degree in self._dist_sensors[:]:
+        for degree in self._dist_sensors:
             to, distance = rayWithRadians(x_, y_, yaw + math.radians(-degree))
-            # self._p.addUserDebugLine([x_, y_, 0], [hits[0], hits[1], 0], self.rayHitColor)
-            # track.createObj(self._p, self._origin, hits[0], hits[1])
-            # print(degree, distance, (x_, y_), to)
-            # if disp:
-                # sensor_id = self._p.addUserDebugLine([x_, y_, 0], [0, 0, 0], self.rayMissColor if distance == 100 else self.rayHitColor, parentObjectUniqueId=self.racecarUniqueId)
-                # self._sensor.append(sensor_id)
-                # self._time = now_time
             obs.append(distance)
-
-        # if disp:
-        #     if self._sensor != []:
-        #         for sensor_id in self._sensor[:len(self._dist_sensors)]:
-        #             self._p.removeUserDebugItem(sensor_id)
-        #     self._sensor = self._sensor[len(self._dist_sensors):]
 
         return obs
 
-
-    def getActionDimension(self):
-        return self.nMotors
-
-    def getObservationDimension(self):
-        return len(self.getObservation())
-
     def getObservation(self):
-        observation = []
-        pos,orn=self._p.getBasePositionAndOrientation(self.racecarUniqueId)
 
-        observation.extend(list(pos))
-        observation.extend(list(orn))
+        observation = None
+
+        if OBSERVATION_TYPE == 'image':
+            observation = self.getCameraImage()
+        if OBSERVATION_TYPE == 'sensor':
+            observation = self.getSensor()
+        if OBSERVATION_TYPE == 'sensor+image':
+            observation = [self.getSensor(), self.getCameraImage()]
 
         return observation
 
     def getCameraImage(self):
+
         ls = self._p.getLinkState(self.racecarUniqueId, 5, computeForwardKinematics=True)
         camPos = ls[0]
         camOrn = ls[1]
@@ -176,6 +157,7 @@ class Racecar:
         return self._p.getCameraImage(320,200,viewMatrix=viewMat,projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2]
 
     def _isCollision(self, part_id):
+
         aabbmin, aabbmax = self._p.getAABB(self.racecarUniqueId,
                                            part_id)  # 5==red block; 1==right wheel; 3==left wheel
         objs = self._p.getOverlappingObjects(aabbmin, aabbmax)
@@ -186,6 +168,7 @@ class Racecar:
         return False
 
     def isCollision(self):
+
         return any([self._isCollision(i) for i in range(1, 6)])
 
     def applyAction(self, motorCommands):
@@ -194,8 +177,6 @@ class Racecar:
         targetVelocity = motorCommands[0]*self.speedMultiplier
         # targetVelocity = sp*self.speedMultiplier
         self.speed = targetVelocity
-        #print("targetVelocity")
-        #print(targetVelocity)
         
         steeringAngle = motorCommands[1]*self.steeringMultiplier
 

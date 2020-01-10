@@ -9,7 +9,7 @@ import numpy as np
 from pybullet_envs.bullet import bullet_client
 from gym import spaces
 from gym.utils import seeding
-from pysim.constants import MAX_STEPS, RENDER_HEIGHT, RENDER_WIDTH, MAX_SPEED, MIN_SPEED, RANDOM_POSITION, DISTANCE_SENSORS
+from pysim.constants import *
 
 from pysim import track
 from pysim import agent
@@ -24,18 +24,16 @@ class CrazyCar(gym.Env):
 
     def __init__(self,
                  urdfRoot=pybullet_data.getDataPath(),
-                 actionRepeat=2,
-                 isDiscrete=False,
                  renders=False,
                  origin=[0, 0, 0]):
 
         self._timeStep = 0.005
         self._urdfRoot = urdfRoot
-        self._actionRepeat = actionRepeat
+        self._actionRepeat = ACTION_REP
         self._observation = []
         self._envStepCounter = 0
         self._renders = renders
-        self._isDiscrete = isDiscrete
+        self._isDiscrete = DISCRETE_ACTION
         self._origin = origin
         self._collisionCounter = 0
         self._poscar = positions.CarPosition(origin)
@@ -55,11 +53,11 @@ class CrazyCar(gym.Env):
         self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
 
         # define action space
-        if (isDiscrete):
+        if (self._isDiscrete):
             self.action_space = spaces.Discrete(9) #91
         else:
-            action_low  = np.array([-1])
-            action_high = np.array([1])
+            action_low  = np.array([0, -1])
+            action_high = np.array([1,  1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
@@ -104,7 +102,7 @@ class CrazyCar(gym.Env):
                                          timeStep=self._timeStep, calibration=False)
         
         # get observation
-        self._observation = self._racecar.getSensor()
+        self._observation = self._racecar.getObservation()
 
         return np.array(self._observation)
 
@@ -115,6 +113,21 @@ class CrazyCar(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
+    def getAction(self, action):
+        realaction = None
+
+        if self._isDiscrete: # discrete action
+            fwd = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+            steerings = [-1, -0.75, -0.45, -0.25, 0.00, 0.25, 0.45, 0.75, 1]
+            forward = fwd[action]
+            steer = steerings[action]
+            realaction = [forward, steer]
+        else: # continuous action
+            realaction = action
+
+        return realaction
+
+
     def step(self, action):
         if (self._renders):
 
@@ -122,17 +135,7 @@ class CrazyCar(gym.Env):
             if now_time-self._lastTime>.3:
                 _ = self._racecar.getCameraImage()
 
-        if (self._isDiscrete):
-            fwd = [1, 1, 1, 1, 1, 1, 1, 1, 1]
-            steerings = [-1, -0.75, -0.45, -0.25, 0.00, 0.25, 0.45, 0.75, 1]
-            forward = fwd[action]
-            steer = steerings[action]
-            realaction = [forward, steer]
-        else:
-            realaction = [1, action[0]]
-            # realaction = action
-        if len(action) == 2:
-            realaction = action
+        realaction = self.getAction(action)
 
         self._racecar.applyAction(realaction)
 
@@ -140,7 +143,7 @@ class CrazyCar(gym.Env):
             self._p.stepSimulation()
             if self._renders:
                 time.sleep(self._timeStep)
-            self._observation = self._racecar.getSensor()
+            self._observation = self._racecar.getObservation()
 
             if self._termination():
                 break
@@ -193,17 +196,12 @@ class MultiCar(CrazyCar):
             for carPos in carPoses 
         ]
 
-        return self.getObservation()
+        return self.getObservationAll()
 
-    def getObservation(self):
-        return [racecar.getSensor() for racecar in self._racecars]
+    def getObservationAll(self):
+        return [racecar.getObservation() for racecar in self._racecars]
 
     def step(self, action):
-        # if (self._renders):
-
-        #     now_time = time.time()
-        #     if now_time-self._lastTime>.3:
-        #         _ = self.cameraImage()
 
         for racecar, realaction in zip(self._racecars, action):
 
@@ -220,7 +218,7 @@ class MultiCar(CrazyCar):
             reward = self._reward()
             done   = self._termination()
 
-        observation = self.getObservation()
+        observation = self.getObservationAll()
 
         return observation, reward, done, {}
 

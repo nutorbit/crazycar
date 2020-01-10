@@ -4,8 +4,8 @@ from pysim.environment import CrazyCar, MultiCar
 from pysim.constants import *
 
 def main():
-    # env = CrazyCar(renders=True, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
-    env = MultiCar(renders=True, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
+    # env = CrazyCar(renders=True)
+    env = MultiCar(renders=True)
 
     # reset 
     obs = env.reset()

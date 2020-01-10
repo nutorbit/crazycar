@@ -19,7 +19,7 @@ from stable_baselines.td3 import TD3
 def main(name, path):
 
 	# init environment
-	env = CrazyCar(renders=True, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
+	env = CrazyCar(renders=True)
 
 	# load model
 

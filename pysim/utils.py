@@ -14,8 +14,7 @@ def get_model(name='ppo2', idx_experiment=1):
 
     name = name.lower()
     
-    # Initial Policy Network
-    
+    env = CrazyCar(renders=False)
 
     if name == 'ppo1':
         from stable_baselines.common.policies import MlpPolicy
@@ -23,7 +22,6 @@ def get_model(name='ppo2', idx_experiment=1):
         policy = MlpPolicy
 
         # env = SubprocVecEnv([lambda: CrazycarGymEnv4(renders=False, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP) for _ in range(N_PARALLEL)])
-        env = CrazyCar(renders=False, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
         env = Monitor(env, LOG_DIR, allow_early_resets=True)
 
 
@@ -41,7 +39,6 @@ def get_model(name='ppo2', idx_experiment=1):
 
         policy = MlpPolicy
 
-        env = CrazyCar(renders=False, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
         env = Monitor(env, LOG_DIR, allow_early_resets=True)
 
         model = SAC(
@@ -57,7 +54,6 @@ def get_model(name='ppo2', idx_experiment=1):
 
         policy = MlpPolicy
 
-        env = CrazyCar(renders=False, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
         env = Monitor(env, LOG_DIR, allow_early_resets=True)
 
         model = DDPG(
@@ -73,7 +69,6 @@ def get_model(name='ppo2', idx_experiment=1):
 
         policy = MlpPolicy
 
-        env = CrazyCar(renders=False, isDiscrete=DISCRETE_ACTION, actionRepeat=ACTION_REP)
         env = Monitor(env, LOG_DIR, allow_early_resets=True)
 
         model = TD3(
