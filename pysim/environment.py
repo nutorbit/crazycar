@@ -46,9 +46,12 @@ class CrazyCar(gym.Env):
 
         self.seed()
 
+        obs = self.reset()
+        # print(obs.shape)
+
         # define observation space
-        observationDim = len(DISTANCE_SENSORS)
-        observation_high = np.full(observationDim, 10)
+        observationDim = obs.shape[0]
+        observation_high = np.full(observationDim, 1)
         observation_low = np.zeros(observationDim)
         self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
 
@@ -56,8 +59,8 @@ class CrazyCar(gym.Env):
         if (self._isDiscrete):
             self.action_space = spaces.Discrete(9) #91
         else:
-            action_low  = np.array([0, -1])
-            action_high = np.array([1,  1])
+            action_low  = np.array([MIN_SPEED, -1])
+            action_high = np.array([MAX_SPEED,  1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
@@ -123,10 +126,10 @@ class CrazyCar(gym.Env):
             steer = steerings[action]
             realaction = [forward, steer]
         else: # continuous action
-            realaction = action
+            # realaction = action
+            realaction = [action[0] + 1, action[1]]
 
         return realaction
-
 
     def step(self, action):
         if (self._renders):

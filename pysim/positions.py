@@ -1,8 +1,3 @@
-import os, inspect
-import random
-
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-
 import copy
 import math
 
@@ -47,4 +42,4 @@ class CarPosition:
         return trackdata[trackpart]
 
     def len(self):
-        return 4
+        return 11

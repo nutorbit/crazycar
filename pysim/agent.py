@@ -126,18 +126,18 @@ class Racecar:
             to, distance = rayWithRadians(x_, y_, yaw + math.radians(-degree))
             obs.append(distance)
 
-        return obs
+        return np.array(obs)
 
     def getObservation(self):
 
         observation = None
 
         if OBSERVATION_TYPE == 'image':
-            observation = self.getCameraImage()
+            observation = self.getCameraImage()/255 # to gray scale
         if OBSERVATION_TYPE == 'sensor':
-            observation = self.getSensor()
+            observation = self.getSensor()/10 # norm 
         if OBSERVATION_TYPE == 'sensor+image':
-            observation = [self.getSensor(), self.getCameraImage()]
+            observation = np.concatenate([self.getSensor()/10, self.getCameraImage()/255])
 
         return observation
 
@@ -154,7 +154,7 @@ class Racecar:
         camUpTarget = [camPos[0]+camUpVec[0],camPos[1]+camUpVec[1],camPos[2]+camUpVec[2]]
         viewMat = self._p.computeViewMatrix(camPos, camTarget, camUpVec)
         projMat = (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0000200271606445, -1.0, 0.0, 0.0, -0.02000020071864128, 0.0)
-        return self._p.getCameraImage(320,200,viewMatrix=viewMat,projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2]
+        return self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat,projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2].flatten()
 
     def _isCollision(self, part_id):
 

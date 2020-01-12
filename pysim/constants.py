@@ -5,13 +5,13 @@ ACTION_REP = 2
 
 MAX_STEPS = 1e7
 
-RENDER_HEIGHT = 720
+CAMERA_HEIGHT = 28
 
-RENDER_WIDTH = 960
+CAMERA_WIDTH = 28
 
 RANDOM_POSITION = False
 
-OBSERVATION_TYPE = 'sensor' # (image, sensor, sensor+image)
+OBSERVATION_TYPE = 'sensor+image' # (image, sensor, sensor+image)
 
 N_PARALLEL = 16
 
