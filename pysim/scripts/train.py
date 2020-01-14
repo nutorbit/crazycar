@@ -12,7 +12,7 @@ best_mean_reward, n_steps = -np.inf, 0
 
 
 @click.command()
-@click.option('--iters', default=1<<19, help='number of update')
+@click.option('--iters', default=1<<15, help='number of update')
 @click.argument('idx')
 @click.option('--description', help='description of experiment')
 @click.argument('name')
@@ -51,7 +51,7 @@ def main(iters, idx, description, name):
         if (n_steps + 1)%1000 == 0:    
             x, y = ts2xy(load_results(LOG_DIR), 'timesteps')
             if len(x) > 0:
-                mean_reward = np.mean(y[-100:])
+                mean_reward = np.mean(y)
 
                 if mean_reward >= best_mean_reward:
                     best_mean_reward = mean_reward

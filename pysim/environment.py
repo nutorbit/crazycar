@@ -128,6 +128,7 @@ class CrazyCar(gym.Env):
         else: # continuous action
             # realaction = action
             realaction = [action[0] + 1, action[1]]
+            self.speed = realaction[0]
 
         return realaction
 
@@ -162,14 +163,14 @@ class CrazyCar(gym.Env):
 
     def _reward(self):
 
-        reward = 0
+        reward = self.speed
 
         carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
 
         x, y  = carpos[0], carpos[1]
 
         if self._racecar.isCollision():
-            reward = -1
+            reward = -100
             self._collisionCounter += 1
             
         if self._collisionCounter >= 10:
@@ -202,7 +203,7 @@ class MultiCar(CrazyCar):
         return self.getObservationAll()
 
     def getObservationAll(self):
-        return [racecar.getObservation() for racecar in self._racecars]
+        return np.array([racecar.getObservation() for racecar in self._racecars])
 
     def step(self, action):
 
