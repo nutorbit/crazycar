@@ -51,13 +51,15 @@ def main(name, path):
 			# predict action
 			action = model.predict(state)[0]
 			# action = (1, -1)
-			print(state)
-			print(action)
+			print('State:', state)
+			# print(max(state), min(state))
+			print('Action:', action)
+			
 
 			# step
 			next_state, reward, done, info = env.step(action)
 
-			print(reward)
+			print('Reward:', reward)
 			state = next_state
 			ep_reward += reward
 

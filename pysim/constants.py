@@ -11,7 +11,7 @@ CAMERA_WIDTH = 28
 
 RANDOM_POSITION = False
 
-OBSERVATION_TYPE = 'sensor+image' # (image, sensor, sensor+image)
+OBSERVATION_TYPE = 'image' # (image, sensor, sensor+image)
 
 N_PARALLEL = 16
 

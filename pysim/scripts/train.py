@@ -14,32 +14,12 @@ best_mean_reward, n_steps = -np.inf, 0
 @click.command()
 @click.option('--iters', default=1<<15, help='number of update')
 @click.argument('idx')
-@click.option('--description', help='description of experiment')
 @click.argument('name')
-def main(iters, idx, description, name):
+def main(iters, idx, name):
 
     if not os.path.exists(f'./models/experiment_{idx}/'):
         os.makedirs(f'./models/experiment_{idx}')
 
-    # write description
-    if description:
-        with open(f'./models/experiment_{idx}/README.md', 'w') as f:
-            f.write(
-            f'''
-
-                # Experiment{idx}
-                {description}
-
-                Action:
-                &emsp;Is Discrete Action: {DISCRETE_ACTION}
-                &emsp;Max Speed: {MAX_SPEED}
-                &emsp;Min Speed: {MIN_SPEED}
-                &emsp;Action Repeat: {ACTION_REP}
-
-                NUMBER OF EPISODES: {iters}
-                MAX_STEPS: {MAX_STEPS}
-
-            ''')
 
     # get model
     model = get_model(name=name, idx_experiment=idx)
@@ -55,7 +35,7 @@ def main(iters, idx, description, name):
 
                 if mean_reward >= best_mean_reward:
                     best_mean_reward = mean_reward
-                    _locals['self'].save(f'./models/experiment_{idx}/{name}.pkl')
+                    _locals['self'].save(f'./models/experiment_{idx}/{name}_best.pkl')
                     print(f'reward at ep {n_steps} is {mean_reward}')
 
         n_steps += 1
@@ -65,7 +45,7 @@ def main(iters, idx, description, name):
     model.learn(total_timesteps=iters, callback=callback)
 
     # save
-    # model.save(f'./pysim/models/experiment_{idx}/{name}.pkl')
+    model.save(f'./models/experiment_{idx}/{name}_last.pkl')
 
 
 if __name__ == '__main__':

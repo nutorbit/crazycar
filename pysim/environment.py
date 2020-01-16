@@ -51,7 +51,7 @@ class CrazyCar(gym.Env):
 
         # define observation space
         observationDim = obs.shape[0]
-        observation_high = np.full(observationDim, 1)
+        observation_high = np.full(observationDim, 2)
         observation_low = np.zeros(observationDim)
         self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
 
@@ -172,6 +172,7 @@ class CrazyCar(gym.Env):
         if self._racecar.isCollision():
             reward = -100
             self._collisionCounter += 1
+            self._terminate = True
             
         if self._collisionCounter >= 10:
             self._terminate = True

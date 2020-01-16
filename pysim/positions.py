@@ -20,7 +20,7 @@ class CarPosition:
         rnd_position = 0
 
         trackdata = {
-            1: [x + 2.9 - 0.7/2, y + 0.7, math.pi/2.0],                              # start position
+            1: [x + 2.9 - 0.7/2, y  + 0.7, math.pi/2.0],                              # start position
             2: [x + 2.9 - 0.7 / 2 + rnd_carwidth,
                 y + 6.5 / 2 + 1.0 + rnd_onemeter,
                 math.pi/2.0 + rnd_position],
