@@ -35,7 +35,7 @@ class CarPosition:
             7: [0.4, 1.3, 1.5*math.pi],
             8: [1.8, 2.5, 1.5*math.pi],
             9: [1.8, 2, math.pi],
-            10: [2, 4.75, 1.5*math.pi],
+            10: [2, 4.75, -math.pi/2],
             11: [0.95, 4.75, math.pi/2]
             
         }

@@ -19,7 +19,7 @@ from pysim import positions
 class CrazyCar(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
-        'video.frames_per_second': 50
+        'video.frames_per_second': 500
     }
 
     def __init__(self,
@@ -50,17 +50,19 @@ class CrazyCar(gym.Env):
         # print(obs.shape)
 
         # define observation space
-        observationDim = obs.shape[0]
-        observation_high = np.full(observationDim, 2)
+        observationDim = obs.shape
+        # print(observationDim)
+        observation_high = np.full(observationDim, 10)
         observation_low = np.zeros(observationDim)
         self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
+        # print(self.observation_space)
 
         # define action space
         if (self._isDiscrete):
             self.action_space = spaces.Discrete(9) #91
         else:
-            action_low  = np.array([MIN_SPEED, -1])
-            action_high = np.array([MAX_SPEED,  1])
+            action_low  = np.array([ -1])
+            action_high = np.array([  1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
@@ -76,7 +78,7 @@ class CrazyCar(gym.Env):
         self._planeId = self._p.loadURDF("./pysim/data/plane.urdf")
 
         # spawn race track
-        track.createRaceTrack(self._p, self._origin)
+        self._direction_field = track.createRaceTrack(self._p, self._origin)
 
         # reset common variables
         for i in range(100):
@@ -97,12 +99,12 @@ class CrazyCar(gym.Env):
             if RANDOM_POSITION:
                 carPos = self._poscar.getNewPosition(random.randint(1, 11))
             else:
-                carPos = self._poscar.getNewPosition(random.randint(1, 1))
+                carPos = self._poscar.getNewPosition(1)
         else:
             carPos = newCarPos
 
         self._racecar = agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot,
-                                         timeStep=self._timeStep, calibration=False)
+                                         timeStep=self._timeStep, direction_field=self._direction_field)
         
         # get observation
         self._observation = self._racecar.getObservation()
@@ -125,10 +127,14 @@ class CrazyCar(gym.Env):
             forward = fwd[action]
             steer = steerings[action]
             realaction = [forward, steer]
+            
         else: # continuous action
             # realaction = action
-            realaction = [action[0] + 1, action[1]]
-            self.speed = realaction[0]
+            # realaction = [action[0] + 1, action[1]]
+            realaction = [1, action]
+            # self.speed = realaction[0]
+
+        self.speed = realaction[0]
 
         return realaction
 
@@ -136,10 +142,11 @@ class CrazyCar(gym.Env):
         if (self._renders):
 
             now_time = time.time()
-            if now_time-self._lastTime>.3:
-                _ = self._racecar.getCameraImage()
+            # if now_time-self._lastTime>.3:
+            #     _ = self._racecar.getCameraImage()
 
         realaction = self.getAction(action)
+        # print(self._racecar.diffAngle())
 
         self._racecar.applyAction(realaction)
 
@@ -156,6 +163,9 @@ class CrazyCar(gym.Env):
         reward = self._reward()
         done   = self._termination()
 
+        # if done:
+        #     reward = -self._envStepCounter * 1e-3
+
         return np.array(self._observation), reward, done, {}
 
     def _termination(self):
@@ -163,14 +173,15 @@ class CrazyCar(gym.Env):
 
     def _reward(self):
 
-        reward = self.speed
+        reward = self.speed * math.cos(self._racecar.diffAngle()) - self.speed * math.sin(self._racecar.diffAngle())
+        # reward = 0
 
-        carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+        # reward += -abs(self._observation[0] - self._observation[-2])*1e-2
 
-        x, y  = carpos[0], carpos[1]
+        x, y, yaw = self._racecar.getCoordinate()
 
         if self._racecar.isCollision():
-            reward = -100
+            # reward = -100
             self._collisionCounter += 1
             self._terminate = True
             
@@ -197,7 +208,8 @@ class MultiCar(CrazyCar):
 
         # 2 agent
         self._racecars = [ 
-            agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot, timeStep=self._timeStep, calibration=False)
+            agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot,\
+                             timeStep=self._timeStep, direction_field=self._direction_field)
             for carPos in carPoses 
         ]
 

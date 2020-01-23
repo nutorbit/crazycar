@@ -4,18 +4,20 @@ import time
 
 import numpy as np
 
+from skimage.color import rgb2gray
+
 from pysim.constants import *
 from pysim import track
 
 class Racecar:
 
-    def __init__(self, bullet_client, origin, carpos, planeId, urdfRootPath='', timeStep=0.01, calibration=False):
+    def __init__(self, bullet_client, origin, carpos, planeId, direction_field, urdfRootPath='', timeStep=0.01):
         self.urdfRootPath = urdfRootPath
         self.timeStep = timeStep
         self._p = bullet_client
         self._origin = origin
         self._carpos = carpos
-        self._calibration = calibration
+        self._direction_field = direction_field
         self._dist_sensors = DISTANCE_SENSORS
         self.speed = 0
         self.rayHitColor = [1,0,0]
@@ -84,17 +86,43 @@ class Racecar:
         # self.speedParameter = self._p.addUserDebugParameter('Speed', 0, 2, 1)
         _ = self.getSensor()
 
-    def getSensor(self):
-        # initial sensors
+    def getCoordinate(self):
         carpos, carorn = self._p.getBasePositionAndOrientation(self.racecarUniqueId)
 
         posEuler = self._p.getEulerFromQuaternion(carorn)
 
         yaw = posEuler[2]
 
-        x_, y_  = carpos[0], carpos[1]
+        return carpos[0], carpos[1], yaw
 
-        def rayWithRadians(x, y, radians, R=[6, 6]):
+    def diffAngle(self):
+
+        x, y, yaw = self.getCoordinate()
+
+        in0   = any([func(x, y) for func in self._direction_field[0]])
+        in90  = any([func(x, y) for func in self._direction_field[90]])
+        in180 = any([func(x, y) for func in self._direction_field[180]])
+        in270 = any([func(x, y) for func in self._direction_field[-90]])
+
+
+        if not (in0 or in90 or in180 or in270): # not in any field.
+            # TODO: condition something.
+            return 0
+        else:
+            # print('Yaw:\t', yaw)
+            if in0:
+                return abs(yaw-0)
+            if in90:
+                return abs(yaw-math.pi/2)
+            if in180:
+                return abs(yaw-math.pi)
+            if in270:
+                return abs(yaw+math.pi/2)
+
+    def getSensor(self):
+        x_, y_, yaw = self.getCoordinate()
+
+        def rayWithRadians(x, y, radians, R=[10, 10]):
 
             # calculate position to rayTest
             x_new = R[0] * math.cos(radians) + x
@@ -122,9 +150,16 @@ class Racecar:
 
         now_time = time.time()
 
+        disp = True
+        if (now_time - self._time) > .3:
+            disp = True
+
         for degree in self._dist_sensors:
             to, distance = rayWithRadians(x_, y_, yaw + math.radians(-degree))
             obs.append(distance)
+            # self._p.addUserDebugLine([x_, y_, 0], [to[0], to[1], 0], self.rayHitColor)
+            # track.createObj(self._p, self._origin, hits[0], hits[1])
+            # print(degree, distance, (x_, y_), to)
 
         return np.array(obs)
 
@@ -133,11 +168,12 @@ class Racecar:
         observation = None
 
         if OBSERVATION_TYPE == 'image':
-            observation = self.getCameraImage()/255 # to gray scale
+            observation = self.getCameraImage().flatten()/255 # to gray scale
         if OBSERVATION_TYPE == 'sensor':
-            observation = self.getSensor()/10 # norm 
+            # observation = np.concatenate([self.getSensor(), np.array([self.speed/self.speedMultiplier])]) # norm 
+            observation = self.getSensor()# norm 
         if OBSERVATION_TYPE == 'sensor+image':
-            observation = np.concatenate([self.getSensor()/10, self.getCameraImage()/255])
+            observation = np.concatenate([self.getSensor()/10, self.getCameraImage().flatten()/255])
 
         return observation
 
@@ -154,7 +190,7 @@ class Racecar:
         camUpTarget = [camPos[0]+camUpVec[0],camPos[1]+camUpVec[1],camPos[2]+camUpVec[2]]
         viewMat = self._p.computeViewMatrix(camPos, camTarget, camUpVec)
         projMat = (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0000200271606445, -1.0, 0.0, 0.0, -0.02000020071864128, 0.0)
-        return self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat,projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2].flatten()
+        return rgb2gray(self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat,projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2])
 
     def _isCollision(self, part_id):
 
@@ -169,7 +205,7 @@ class Racecar:
 
     def isCollision(self):
 
-        return any([self._isCollision(i) for i in range(1, 6)])
+        return any([self._isCollision(i) for i in range(1, 10)])
 
     def applyAction(self, motorCommands):
 

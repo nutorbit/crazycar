@@ -1,7 +1,7 @@
 # config environment
 DISCRETE_ACTION = False
 
-ACTION_REP = 2
+ACTION_REP = 1
 
 MAX_STEPS = 1e7
 

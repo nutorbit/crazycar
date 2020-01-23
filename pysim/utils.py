@@ -48,8 +48,8 @@ def get_model(name='ppo2', idx_experiment=1):
             env=env,
             # n_steps=1<<10,
             # nminibatches=1<<7,
-            cliprange=0.1,
-            learning_rate=0.0001,
+            # cliprange=0.1,
+            # learning_rate=0.0001,
             verbose=1,
             tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
         )
@@ -65,8 +65,12 @@ def get_model(name='ppo2', idx_experiment=1):
         model = SAC(
             policy=policy,
             env=env,
+            # buffer_size=1e6,
+            # gamma=0.9975,
+            # learning_starts=1<9,
+            # batch_size=1<<9,
             verbose=1,
-            tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
+            tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/',
         )
     
     if name == 'ddpg':

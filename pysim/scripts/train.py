@@ -12,7 +12,7 @@ best_mean_reward, n_steps = -np.inf, 0
 
 
 @click.command()
-@click.option('--iters', default=1<<15, help='number of update')
+@click.option('--iters', default=1<<20, help='number of update')
 @click.argument('idx')
 @click.argument('name')
 def main(iters, idx, name):
@@ -31,9 +31,9 @@ def main(iters, idx, name):
         if (n_steps + 1)%1000 == 0:    
             x, y = ts2xy(load_results(LOG_DIR), 'timesteps')
             if len(x) > 0:
-                mean_reward = np.mean(y)
+                mean_reward = np.mean(y[-5:])
 
-                if mean_reward >= best_mean_reward:
+                if mean_reward > best_mean_reward:
                     best_mean_reward = mean_reward
                     _locals['self'].save(f'./models/experiment_{idx}/{name}_best.pkl')
                     print(f'reward at ep {n_steps} is {mean_reward}')
