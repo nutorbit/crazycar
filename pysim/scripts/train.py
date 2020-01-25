@@ -13,7 +13,7 @@ from stable_baselines.results_plotter import load_results, ts2xy
 
 best_mean_reward, n_steps = -np.inf, 0
 now = datetime.now()
-now = now.strftime("%b %d %Y %H:%M:%S")
+now = now.strftime("%b_%d_%Y_%H:%M:%S")
 pbar = tqdm(total=1<<20)
 
 @click.command()
