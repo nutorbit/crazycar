@@ -107,6 +107,7 @@ class Racecar:
 
         if not (in0 or in90 or in180 or in270): # not in any field.
             # TODO: condition something.
+            # print('----------------------')
             return 0
         else:
             # print('Yaw:\t', yaw)

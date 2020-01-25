@@ -61,8 +61,8 @@ class CrazyCar(gym.Env):
         if (self._isDiscrete):
             self.action_space = spaces.Discrete(9) #91
         else:
-            action_low  = np.array([ -1])
-            action_high = np.array([  1])
+            action_low  = np.array([MIN_SPEED, -1])
+            action_high = np.array([MAX_SPEED,  1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
@@ -99,7 +99,7 @@ class CrazyCar(gym.Env):
             if RANDOM_POSITION:
                 carPos = self._poscar.getNewPosition(random.randint(1, 11))
             else:
-                carPos = self._poscar.getNewPosition(1)
+                carPos = self._poscar.getNewPosition(2)
         else:
             carPos = newCarPos
 
@@ -130,8 +130,8 @@ class CrazyCar(gym.Env):
             
         else: # continuous action
             # realaction = action
-            # realaction = [action[0] + 1, action[1]]
-            realaction = [1, action]
+            realaction = [action[0] + 1, action[1]]
+            # realaction = [1, action]
             # self.speed = realaction[0]
 
         self.speed = realaction[0]
@@ -174,6 +174,8 @@ class CrazyCar(gym.Env):
     def _reward(self):
 
         reward = self.speed * math.cos(self._racecar.diffAngle()) - self.speed * math.sin(self._racecar.diffAngle())
+        # if self.speed < 0:
+        #     reward = reward * 10
         # reward = 0
 
         # reward += -abs(self._observation[0] - self._observation[-2])*1e-2

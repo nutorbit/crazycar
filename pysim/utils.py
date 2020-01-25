@@ -30,7 +30,8 @@ def get_model(name='ppo2', idx_experiment=1):
             policy=policy,
             env=env,
             # n_steps=1024,
-            verbose=1,
+            gamma=0.9,
+            # verbose=1,
             tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
         )
 
@@ -46,11 +47,13 @@ def get_model(name='ppo2', idx_experiment=1):
         model = PPO2(
             policy=policy,
             env=env,
-            # n_steps=1<<10,
-            # nminibatches=1<<7,
-            # cliprange=0.1,
-            # learning_rate=0.0001,
-            verbose=1,
+            n_steps=1<<11,
+            nminibatches=1<<11,
+            cliprange=0.1,
+            gamma=0.9,
+            ent_coef=0,
+            # learning_rate=0.00003,
+            # verbose=1,
             tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
         )
 
@@ -60,16 +63,19 @@ def get_model(name='ppo2', idx_experiment=1):
 
         policy = MlpPolicy
 
+        # env = VecNormalize(DummyVecEnv([lambda: Monitor(env, LOG_DIR, allow_early_resets=True)]))
         env = Monitor(env, LOG_DIR, allow_early_resets=True)
 
         model = SAC(
             policy=policy,
             env=env,
-            # buffer_size=1e6,
-            # gamma=0.9975,
+            # ent_coef='auto_0.1',
+            buffer_size=256,
+            # gamma=0.9,
             # learning_starts=1<9,
+            # learning_rate=1e-3,
             # batch_size=1<<9,
-            verbose=1,
+            # verbose=1,
             tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/',
         )
     
@@ -84,7 +90,7 @@ def get_model(name='ppo2', idx_experiment=1):
         model = DDPG(
             policy=policy,
             env=env,
-            verbose=1,
+            # verbose=1,
             tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
         )
 
@@ -99,7 +105,7 @@ def get_model(name='ppo2', idx_experiment=1):
         model = TD3(
             policy=policy,
             env=env,
-            verbose=1,
+            # verbose=1,
             tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
         )
 

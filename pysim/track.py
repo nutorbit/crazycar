@@ -80,22 +80,22 @@ def createRaceTrack(bullet_client, origin):
 
      direction_field = { # degree
           0: [
-               lambda i, j: (0 < i < x3) and (0 < j < y1),
-               lambda i, j: (0 < i < x1) and (y2 < j < y3),
-               lambda i, j: (x1 < i < x2) and (y4 < j < y5)
+               lambda i, j: (0 <= i <= x3) and (0 <= j <= y1),
+               lambda i, j: (0 <= i <= x1) and (y2 <= j <= y3),
+               lambda i, j: (x1 <= i <= x2) and (y4 <= j <= y5)
           ],
           90: [
-               lambda i, j: (x3 < i < x4) and (0 < j < y5),
-               lambda i, j: (x1 < i < x2) and (y2 < j < y4)
+               lambda i, j: (x3 <= i <= x4) and (0 <= j <= y5),
+               lambda i, j: (x1 <= i <= x2) and (y2 <= j <= y4)
           ],
           -90: [
-               lambda i, j: (0 < i < x1) and (y1 < j < y2),
-               lambda i, j: (0 < i < x1) and (y3 < j < y6),
-               lambda i, j: (x2 < i < x3) and (y2 < j < y5)
+               lambda i, j: (0 <= i <= x1) and (y1 <= j <= y2),
+               lambda i, j: (0 <= i <= x1) and (y3 <= j <= y6),
+               lambda i, j: (x2 <= i <= x3) and (y2 <= j <= y5)
           ],
           180: [
-               lambda i, j: (x1 < i < x3) and (y1 < j < y2),
-               lambda i, j: (x1 < i < x4) and (y5 < j < y6)
+               lambda i, j: (x1 <= i <= x3) and (y1 <= j <= y2),
+               lambda i, j: (x1 <= i <= x4) and (y5 <= j <= y6)
           ]
      }
 
