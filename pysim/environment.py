@@ -1,4 +1,6 @@
 import math
+from abc import ABC
+
 import gym
 import time
 import pybullet
@@ -16,16 +18,15 @@ from pysim import agent
 from pysim import positions
 
 
-class CrazyCar(gym.Env):
-    metadata = {
-        'render.modes': ['human', 'rgb_array'],
-        'video.frames_per_second': 500
-    }
+class CrazyCar(ABC):
 
     def __init__(self,
                  urdfRoot=pybullet_data.getDataPath(),
                  renders=False,
-                 origin=[0, 0, 0]):
+                 origin=None):
+
+        if origin is None:
+            origin = [0, 0, 0]
 
         self._timeStep = 0.005
         self._urdfRoot = urdfRoot
@@ -44,25 +45,23 @@ class CrazyCar(gym.Env):
         else:
             self._p = bullet_client.BulletClient()
 
-        self.seed()
-
         obs = self.reset()
         # print(obs.shape)
 
         # define observation space
         observationDim = obs.shape
         # print(observationDim)
-        observation_high = np.full(observationDim, 10)
+        observation_high = np.full(observationDim, 1)
         observation_low = np.zeros(observationDim)
         self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
         # print(self.observation_space)
 
         # define action space
-        if (self._isDiscrete):
-            self.action_space = spaces.Discrete(9) #91
+        if self._isDiscrete:
+            self.action_space = spaces.Discrete(9)
         else:
-            action_low  = np.array([MIN_SPEED, -1])
-            action_high = np.array([MAX_SPEED,  1])
+            action_low  = np.array([0.5, -1])
+            action_high = np.array([1,  1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
@@ -99,13 +98,13 @@ class CrazyCar(gym.Env):
             if RANDOM_POSITION:
                 carPos = self._poscar.getNewPosition(random.randint(1, 11))
             else:
-                carPos = self._poscar.getNewPosition(2)
+                carPos = self._poscar.getNewPosition(4)
         else:
             carPos = newCarPos
 
         self._racecar = agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot,
                                          timeStep=self._timeStep, direction_field=self._direction_field)
-        
+
         # get observation
         self._observation = self._racecar.getObservation()
 
@@ -114,32 +113,16 @@ class CrazyCar(gym.Env):
     def __del__(self):
         self._p = 0
 
-    def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
-
     def getAction(self, action):
-        realaction = None
 
-        if self._isDiscrete: # discrete action
-            fwd = [1, 1, 1, 1, 1, 1, 1, 1, 1]
-            steerings = [-1, -0.75, -0.45, -0.25, 0.00, 0.25, 0.45, 0.75, 1]
-            forward = fwd[action]
-            steer = steerings[action]
-            realaction = [forward, steer]
-            
-        else: # continuous action
-            # realaction = action
-            realaction = [action[0] + 1, action[1]]
-            # realaction = [1, action]
-            # self.speed = realaction[0]
+        realaction = action.ravel()
 
-        self.speed = realaction[0]
+        self._speed = realaction[0]
 
         return realaction
 
     def step(self, action):
-        if (self._renders):
+        if self._renders:
 
             now_time = time.time()
             # if now_time-self._lastTime>.3:
@@ -147,7 +130,7 @@ class CrazyCar(gym.Env):
 
         realaction = self.getAction(action)
         # print(self._racecar.diffAngle())
-
+        # print(realaction)
         self._racecar.applyAction(realaction)
 
         for i in range(self._actionRepeat):
@@ -173,24 +156,48 @@ class CrazyCar(gym.Env):
 
     def _reward(self):
 
-        reward = self.speed * math.cos(self._racecar.diffAngle()) - self.speed * math.sin(self._racecar.diffAngle())
-        # if self.speed < 0:
-        #     reward = reward * 10
-        # reward = 0
+        diffAngle = self._racecar.diffAngle()
 
-        # reward += -abs(self._observation[0] - self._observation[-2])*1e-2
-
+        reward = self._speed * 10 * math.cos(diffAngle) - self._speed * 10 * math.sin(diffAngle)
+        
         x, y, yaw = self._racecar.getCoordinate()
 
         if self._racecar.isCollision():
-            # reward = -100
+
+            reward = -50
             self._collisionCounter += 1
+
+            # if np.random.rand() < 0.1:
             self._terminate = True
             
-        if self._collisionCounter >= 10:
+        if math.pi - math.pi/4 <= diffAngle <= math.pi + math.pi/4:
+            reward = -50
+            # backward
             self._terminate = True
 
+
         return reward
+
+    @property
+    def p(self):
+        return self._p
+
+
+class SingleControl(CrazyCar):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        action_low = np.array([-1])
+        action_high = np.array([1])
+
+        self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
+
+    def getAction(self, action):
+        realaction = [1, action]
+
+        self._speed = realaction[0]
+
+        return realaction
 
 
 class MultiCar(CrazyCar):
@@ -241,11 +248,19 @@ class MultiCar(CrazyCar):
 
         return observation, reward, done, {}
 
-    def _carCollision(self, carLinkIndex):
+    def _carCollision(self):
         res = []
         for racecar in self._racecars:
             res.append(racecar.isCollision())
         return res
 
     def _reward(self):
+        pass
+
+
+if __name__ == '__main__':
+    env = SingleControl(renders=True)
+    env.reset([2.9 - 0.7/2, 0.8, math.pi/2.0])
+    env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
+    while 1:
         pass

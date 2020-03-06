@@ -107,17 +107,22 @@ class Racecar:
 
         if not (in0 or in90 or in180 or in270): # not in any field.
             # TODO: condition something.
-            # print('----------------------')
+            # print('*****************************')
             return 0
         else:
-            # print('Yaw:\t', yaw)
+            # print('Yaw:\t', round(math.degrees(yaw))+180)
+            # yaw = abs(yaw)
             if in0:
+                # print(0)
                 return abs(yaw-0)
             if in90:
+                # print(90)
                 return abs(yaw-math.pi/2)
             if in180:
-                return abs(yaw-math.pi)
+                # print(180)
+                return abs(abs(yaw)-math.pi)
             if in270:
+                # print(270)
                 return abs(yaw+math.pi/2)
 
     def getSensor(self):
@@ -139,13 +144,13 @@ class Racecar:
                 # track.createObj(self._p, self._origin, pos[0], pos[1])
 
                 if hit == 1.: # miss
-                    return (x_new, y_new), 10
+                    return (x_new, y_new), 7
                 else:
                     return (pos[0], pos[1]), distance
             except Exception as e:
                 print('not found object', e)
 
-                return (x_new, x_new), 10
+                return (x_new, x_new), 7
 
         obs = []
 
@@ -169,12 +174,13 @@ class Racecar:
         observation = None
 
         if OBSERVATION_TYPE == 'image':
-            observation = self.getCameraImage().flatten()/255 # to gray scale
+            observation = self.getCameraImage() # to gray scale
         if OBSERVATION_TYPE == 'sensor':
-            # observation = np.concatenate([self.getSensor(), np.array([self.speed/self.speedMultiplier])]) # norm 
-            observation = self.getSensor()# norm 
+            # observation = np.concatenate([self.getSensor(), np.array([self.speed/self.speedMultiplier])]) # norm
+            # observation = self.getSensor()/7
+            observation = np.concatenate([self.getSensor()/7, [self.diffAngle()/math.pi], np.array([self.speed/self.speedMultiplier])]) # norm
         if OBSERVATION_TYPE == 'sensor+image':
-            observation = np.concatenate([self.getSensor()/10, self.getCameraImage().flatten()/255])
+            observation = np.concatenate([self.getSensor()/7, self.getCameraImage().flatten()/255])
 
         return observation
 
@@ -184,14 +190,14 @@ class Racecar:
         camPos = ls[0]
         camOrn = ls[1]
         camMat = self._p.getMatrixFromQuaternion(camOrn)
-        upVector = [0,0,1]
-        forwardVec = [camMat[0],camMat[3],camMat[6]]
-        camUpVec =  [camMat[2],camMat[5],camMat[8]]
-        camTarget = [camPos[0]+forwardVec[0]*10,camPos[1]+forwardVec[1]*10,camPos[2]+forwardVec[2]*10]
-        camUpTarget = [camPos[0]+camUpVec[0],camPos[1]+camUpVec[1],camPos[2]+camUpVec[2]]
+        upVector = [0, 0, 1]
+        forwardVec = [camMat[0], camMat[3], camMat[6]]
+        camUpVec =  [camMat[2], camMat[5], camMat[8]]
+        camTarget = [camPos[0]+forwardVec[0]*10, camPos[1]+forwardVec[1]*10, camPos[2]+forwardVec[2]*10]
+        camUpTarget = [camPos[0]+camUpVec[0], camPos[1]+camUpVec[1], camPos[2]+camUpVec[2]]
         viewMat = self._p.computeViewMatrix(camPos, camTarget, camUpVec)
         projMat = (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0000200271606445, -1.0, 0.0, 0.0, -0.02000020071864128, 0.0)
-        return rgb2gray(self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat,projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2])
+        return self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat,projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2]
 
     def _isCollision(self, part_id):
 
@@ -199,6 +205,7 @@ class Racecar:
                                            part_id)  # 5==red block; 1==right wheel; 3==left wheel
         objs = self._p.getOverlappingObjects(aabbmin, aabbmax)
         # print(objs)
+
         for x in objs:
             if (x[1] == -1 and not (x[0] == self.racecarUniqueId or x[0] == self._planeId)):
                 return True

@@ -1,3 +1,6 @@
+import tensorflow as tf
+import numpy as np
+
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.sac import SAC
 from stable_baselines.ddpg import DDPG
@@ -11,11 +14,13 @@ from pysim.constants import *
 from pysim.environment import CrazyCar
 
 
-def get_model(name='ppo2', idx_experiment=1):
+def get_model(t, name='ppo2', idx_experiment=1):
 
     name = name.lower()
     
     env = CrazyCar(renders=False)
+
+    log_path = f'./logs/tensorboard/experiment_{idx_experiment}/{name}/{t}/'
 
     if name == 'ppo1':
         from stable_baselines.common.policies import MlpPolicy
@@ -32,13 +37,15 @@ def get_model(name='ppo2', idx_experiment=1):
             # n_steps=1024,
             gamma=0.9,
             # verbose=1,
-            tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
+            tensorboard_log=log_path
         )
 
     if name == 'ppo2':
         from stable_baselines.common.policies import MlpPolicy
 
         policy = MlpPolicy
+
+        policy_kwargs = dict(act_fun=tf.nn.relu, net_arch=[256, 128, 64])
 
         env = SubprocVecEnv([lambda: CrazyCar(renders=False) for _ in range(N_PARALLEL)])
         # env = Monitor(env, LOG_DIR, allow_early_resets=True)
@@ -47,14 +54,14 @@ def get_model(name='ppo2', idx_experiment=1):
         model = PPO2(
             policy=policy,
             env=env,
-            n_steps=1<<11,
-            nminibatches=1<<11,
-            cliprange=0.1,
-            gamma=0.9,
-            ent_coef=0,
+            # n_steps=1<<10,
+            # nminibatches=1<<10,
+            # gamma=0.9,
+            # ent_coef=0,
             # learning_rate=0.00003,
-            # verbose=1,
-            tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
+            verbose=1,
+            tensorboard_log=log_path,
+            policy_kwargs=policy_kwargs
         )
 
     if name == 'sac':
@@ -70,13 +77,15 @@ def get_model(name='ppo2', idx_experiment=1):
             policy=policy,
             env=env,
             # ent_coef='auto_0.1',
-            buffer_size=256,
+            buffer_size=1000000,
             # gamma=0.9,
             # learning_starts=1<9,
-            # learning_rate=1e-3,
+            learning_rate=10000,
+            train_freq=1,
             # batch_size=1<<9,
-            # verbose=1,
-            tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/',
+            gradient_steps=1,
+            verbose=1,
+            tensorboard_log=log_path,
         )
     
     if name == 'ddpg':
@@ -85,28 +94,42 @@ def get_model(name='ppo2', idx_experiment=1):
 
         policy = MlpPolicy
 
+        # env = DummyVecEnv([lambda: env, lambda: env])
+
         env = Monitor(env, LOG_DIR, allow_early_resets=True)
 
         model = DDPG(
             policy=policy,
             env=env,
-            # verbose=1,
-            tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
+            verbose=1,
+            tensorboard_log=log_path
         )
 
-    if name == 'td3':
+    if name == 'td3_tf':
 
         from stable_baselines.td3 import MlpPolicy
+        from stable_baselines.ddpg.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 
         policy = MlpPolicy
+
+        n_actions = env.action_space.shape[-1]
+        action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.3 * np.ones(n_actions))
+
+        # env = DummyVecEnv([lambda: env, lambda: env])
 
         env = Monitor(env, LOG_DIR, allow_early_resets=True)
 
         model = TD3(
             policy=policy,
             env=env,
-            # verbose=1,
-            tensorboard_log=f'./logs/tensorboard/experiment_{idx_experiment}/{name}/'
+            action_noise=action_noise,
+            buffer_size=1000000,
+            gradient_steps=1000,
+            learning_starts=10000,
+            train_freq=1000,
+            policy_kwargs=dict(layers=[400, 300]),
+            tensorboard_log=log_path,
+            verbose=1,
         )
 
     return model

@@ -35,7 +35,7 @@ def main(name, path):
 	if name == 'ddpg':
 		model = DDPG.load(path)
 
-	if name == 'td3':
+	if name == 'td3_tf':
 		model = TD3.load(path)
 
 	# loop
