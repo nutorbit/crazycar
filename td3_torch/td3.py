@@ -239,11 +239,10 @@ class TD3:
         return np.mean(rews), np.mean(steps)
 
     def learn(self, epochs):
-
         total_timesteps = epochs * self.steps_per_epoch
 
         obs = self.env.reset()
-        episode_rew, episode_len = 0, 0
+        episode_rew, episode_len, best_rew = 0, 0, float('-inf')
         self.logger.start()
 
         for t in trange(total_timesteps):
@@ -293,7 +292,9 @@ class TD3:
                 self.logger.store('Steps/test', mean_steps)
 
                 # save model here
-                self.logger.save_model(self.agent.ac)
+                if best_rew < mean_rew:
+                    best_rew = mean_rew
+                    self.logger.save_model(self.agent.ac)
 
             self.logger.update_steps()
 
