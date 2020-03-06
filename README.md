@@ -11,24 +11,12 @@ $ pip install -r requirements.txt
 **training a model.**
 
 ```shell
-$ python -m pysim.scripts.train --iters=NUM idx --description="test" name
+$ python -m td3_torch.td3
 ```
-
-`iters` is a number of episode (`NUM`) for training the agent.
-
-`idx` is a number of experiments.
-
-`description` is a word to describe the experiment.
-
-`name` is a model name (`ppo1`, `sac`, `td3`, `ddpg`).
-
 
 **testing a model.**
 
 ```shell
-$ python -m pysim.scripts.test model PATH
+$ python -m td3_torch.test --path
 ```
 
-`model` is a model name (`ppo1`, `sac`, `td3`, `ddpg).
-
-`PATH` is path to model that you want to test.
