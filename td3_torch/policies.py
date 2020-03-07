@@ -4,8 +4,13 @@ import torch.nn.functional as F
 
 import math
 
+from td3_torch.utils import set_seed
 
-class AbstractModel(nn.Module):
+
+set_seed(100)
+
+
+class BaseModel(nn.Module):
     def __init__(self, obs_dim, act_dim):
         super().__init__()
         self.obs_dim = obs_dim
@@ -25,7 +30,7 @@ class AbstractModel(nn.Module):
         self.soft_update(other_network, polyak=1.)
 
 
-class Actor(AbstractModel):
+class Actor(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
         self.pi = nn.Sequential(
@@ -38,7 +43,7 @@ class Actor(AbstractModel):
         return self.pi(obs)
 
 
-class ActorCNN(AbstractModel):
+class ActorCNN(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
         self.cnn = ImpalaCNN(obs_dim).cuda()
@@ -58,7 +63,7 @@ class ActorCNN(AbstractModel):
         return x
 
 
-class Critic(AbstractModel):
+class Critic(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
         self.q1 = nn.Sequential(
@@ -82,7 +87,7 @@ class Critic(AbstractModel):
         return self.q1(concat)
 
 
-class CriticCNN(AbstractModel):
+class CriticCNN(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
         self.cnn = ImpalaCNN(obs_dim).cuda()

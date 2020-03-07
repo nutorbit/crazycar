@@ -1,12 +1,10 @@
-import time
-
 import torch
 import numpy as np
 
 
 from tqdm import trange
 
-from td3_torch.utils import ReplayBuffer, Logger, set_seed
+from td3_torch.utils import ReplayBuffer, Logger, set_seed, huber_loss
 from td3_torch.policies import ActorCritic, ActorCriticCNN
 
 from pysim.environment import CrazyCar, SingleControl
@@ -58,7 +56,7 @@ class Agent:
     def critic_loss(self, batch):
         obs, act, next_obs, rew, done = batch['obs'], batch['act'], batch['next_obs'], batch['rew'], batch['done']
 
-        with torch.no_grad():
+        with torch.no_grad():  # target
             pi_target = self.ac.actor_target(obs)
 
             noise = torch.rand_like(pi_target) * self.target_noise
@@ -67,12 +65,15 @@ class Agent:
 
             target_q1, target_q2 = self.ac.critic_target(obs, next_act)
             target_q = torch.min(target_q1, target_q2)
-            backup = rew + self.gamma * (1 - done) * target_q
+            target = rew + self.gamma * (1 - done) * target_q
 
         current_q1, current_q2 = self.ac.critic(obs, act)
 
-        loss_q1 = ((current_q1 - backup) ** 2).mean()
-        loss_q2 = ((current_q2 - backup) ** 2).mean()
+        td_error1 = current_q1 - target
+        td_error2 = current_q2 - target
+
+        loss_q1 = (td_error1 ** 2).mean()
+        loss_q2 = (td_error2 ** 2).mean()
 
         loss_q = loss_q1 + loss_q2
 
@@ -154,7 +155,7 @@ class TD3:
                  polyak=0.995,
                  gamma=0.9,
                  noise_clip=0.5,
-                 target_noise=0.02,
+                 target_noise=0.2,
                  replay_size=100000,
                  batch_size=100,
                  actor_lr=1e-3,
@@ -306,8 +307,12 @@ if __name__ == '__main__':
 
     torch.cuda.empty_cache()
     torch.cuda.memory_allocated()
+    torch.set_num_threads(6)
 
     # env = CrazyCar()
     env = SingleControl()
+    import gym
+
+    # env = gym.make('MountainCarContinuous-v0')
     model = TD3(env)
     model.learn(1000)

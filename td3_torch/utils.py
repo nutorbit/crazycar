@@ -7,48 +7,93 @@ import json
 from datetime import datetime
 
 from torch.utils.tensorboard import SummaryWriter
+from cpprb import PrioritizedReplayBuffer as prb
+from cpprb import ReplayBuffer as rb
 
 
-def set_seed(seed):
+def set_seed(seed=100):
     torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
     random.seed(seed)
+
+
+def huber_loss(x, delta=10.):
+    """
+    Compute the huber loss.
+    Ref: https://en.wikipedia.org/wiki/Huber_loss
+    """
+
+    delta = torch.ones_like(x) * delta
+    less_than_max = 0.5 * (x * x)
+    greater_than_max = delta * (torch.abs(x) - 0.5 * delta)
+
+    return torch.where(
+        torch.abs(x) <= delta,
+        less_than_max,
+        greater_than_max
+    )
 
 
 set_seed(100)
 
 
-class ReplayBuffer:
+class BaseReplayBuffer:
 
-    def __init__(self, obs_dim, act_dim, size=100000):
-        self.obs = np.zeros((size, *obs_dim), dtype=np.float32)
-        self.next_obs = np.zeros((size, *obs_dim), dtype=np.float32)
-        self.act = np.zeros((size, *act_dim), dtype=np.float32)
-        self.rew = np.zeros((size, 1), dtype=np.float32)
-        self.done = np.zeros((size, 1), dtype=np.float32)
-        self.ptr = 0
-        self.size = 0
-        self.cap = size
+    def __init__(self, obs_dim, act_dim, size=10000):
+        self.default_env_dict = {
+            "obs": {
+                "shape": obs_dim
+            },
+            "act": {
+                "shape": act_dim
+            },
+            "rew": {},
+            "next_obs": {
+                "shape": obs_dim
+            },
+            "done": {}
+        }
 
     def add(self, obs, next_obs, act, rew, done):
-        self.obs[self.ptr] = obs
-        self.next_obs[self.ptr] = next_obs
-        self.act[self.ptr] = act
-        self.rew[self.ptr] = rew
-        self.done[self.ptr] = done
-        self.ptr = (self.ptr + 1) % self.cap
-        self.size = min(self.size + 1, self.cap)
+        self.buffer.add(
+            obs=np.asarray(obs, dtype=np.float32),
+            next_obs=np.asarray(next_obs, dtype=np.float32),
+            act=np.asarray(act, dtype=np.float32),
+            rew=np.asarray(rew, dtype=np.float32),
+            done=np.asarray(done, dtype=np.float32),
+        )
+
+
+class ReplayBuffer(BaseReplayBuffer):
+
+    def __init__(self, obs_dim, act_dim, size=100000):
+        super().__init__(obs_dim, act_dim)
+        self.buffer = rb(size, env_dict=self.default_env_dict)
 
     def sample(self, batch_size=32):
-        idx = np.random.randint(low=0, high=self.size, size=batch_size)
-        batch = dict(
-            obs=self.obs[idx],
-            next_obs=self.next_obs[idx],
-            act=self.act[idx],
-            rew=self.rew[idx],
-            done=self.done[idx]
-        )
-        return {k: torch.as_tensor(v, dtype=torch.float32).cuda() for k, v in batch.items()}
+        batch = self.buffer.sample(batch_size)
+        payload = {k: torch.as_tensor(v, dtype=torch.float32).cuda() for k, v in batch.items()}
+
+        return payload
+
+
+class PriorityReplayBuffer(BaseReplayBuffer):
+
+    def __init__(self, obs_dim, act_dim, size):
+        super().__init__(obs_dim, act_dim)
+        self.buffer = prb(size, env_dict=self.default_env_dict)
+
+    def sample(self, batch_size=32, beta=0.4):
+        batch = self.buffer.sample(batch_size=batch_size, beta=beta)
+        indexes, weights = batch['indexes'], batch['weights']
+        # self.buffer.update_priorities(indexes, weights)
+
+        payload = {k: torch.as_tensor(v, dtype=torch.float32).cuda() for k, v in list(batch.items())[:-2]}
+
+        return payload
 
 
 class Logger:
