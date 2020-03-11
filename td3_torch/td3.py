@@ -35,8 +35,8 @@ class Agent:
 
         self.logger = logger
 
-        self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
-        # self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
+        # self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
+        self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
         self.replay_buffer = ReplayBuffer(observation_space.shape, action_space.shape, replay_size)
 
         # Freeze target network
@@ -59,7 +59,7 @@ class Agent:
         with torch.no_grad():  # target
             pi_target = self.ac.actor_target(obs)
 
-            noise = torch.rand_like(pi_target) * self.target_noise
+            noise = torch.normal(0, self.target_noise, pi_target.shape).cuda()
             noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
             next_act = torch.clamp(pi_target + noise, -1, 1)
 
@@ -72,8 +72,11 @@ class Agent:
         td_error1 = current_q1 - target
         td_error2 = current_q2 - target
 
-        loss_q1 = (td_error1 ** 2).mean()
-        loss_q2 = (td_error2 ** 2).mean()
+        # loss_q1 = (td_error1 ** 2).mean()
+        # loss_q2 = (td_error2 ** 2).mean()
+
+        loss_q1 = huber_loss(td_error1).mean()
+        loss_q2 = huber_loss(td_error2).mean()
 
         loss_q = loss_q1 + loss_q2
 
@@ -132,15 +135,25 @@ class Agent:
         return obs
 
     def predict(self, obs):
+        self.ac.actor.eval()
+
         obs = np.expand_dims(obs, axis=0)
         obs = self.to_tensor(obs).cuda()
         act = self.ac.act(obs).cpu().data.numpy()
+
+        self.ac.actor.train()
+
         return self.unscale_action(act)
 
     def raw_predict(self, obs):
+        self.ac.actor.eval()
+
         obs = np.expand_dims(obs, axis=0)
         obs = self.to_tensor(obs).cuda()
         act = self.ac.act(obs).cpu().data.numpy()
+
+        self.ac.actor.train()
+
         return act
 
 
@@ -150,16 +163,16 @@ class TD3:
                  start_steps=10000,
                  update_after=1000,
                  update_every=50,
-                 act_noise=0.1,
                  policy_delay=2,
+                 act_noise=0.5,
+                 target_noise=0.5,
+                 noise_clip=0.5,
                  polyak=0.995,
                  gamma=0.9,
-                 noise_clip=0.5,
-                 target_noise=0.2,
+                 actor_lr=1e-5,
+                 critic_lr=1e-5,
                  replay_size=100000,
-                 batch_size=100,
-                 actor_lr=1e-3,
-                 critic_lr=1e-3,
+                 batch_size=500,
                  seed=100):
 
         # Hyperparameter
@@ -203,7 +216,7 @@ class TD3:
         )
 
         # Set random seed
-        set_seed(seed)
+        # set_seed(seed)
 
         # Set agent
         self.agent = Agent(
@@ -307,7 +320,7 @@ if __name__ == '__main__':
 
     torch.cuda.empty_cache()
     torch.cuda.memory_allocated()
-    torch.set_num_threads(6)
+    torch.set_num_threads(12)
 
     # env = CrazyCar()
     env = SingleControl()

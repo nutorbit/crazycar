@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import torch
+import torch.nn as nn
 import os
 import json
 
@@ -37,7 +38,18 @@ def huber_loss(x, delta=10.):
     )
 
 
-set_seed(100)
+def make_mlp(sizes, activation, output_activation=nn.Identity):
+    layers = []
+    for j in range(len(sizes)-1):
+        if j < len(sizes)-2:
+            # layers += [nn.Linear(sizes[j], sizes[j+1]), nn.BatchNorm1d(sizes[j+1]), activation()]
+            layers += [nn.Linear(sizes[j], sizes[j + 1]), activation()]
+        else:  # output layer
+            layers += [nn.Linear(sizes[j], sizes[j+1]), output_activation()]
+    return nn.Sequential(*layers)
+
+
+# set_seed(100)
 
 
 class BaseReplayBuffer:
@@ -103,13 +115,12 @@ class Logger:
         self.time = datetime.now()
         self.start_date = self.time.strftime("%b_%d_%Y_%H%M%S")
         self.steps = 0
-        self.save_hy = False
         self.writer = None
         self.hyperparameter = None
 
     def start(self):
 
-        # Create lops directory
+        # Create logs directory
         if not os.path.exists(f'./logs/{self.start_date}'):
             os.makedirs(f'./logs/{self.start_date}')
 

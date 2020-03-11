@@ -29,7 +29,7 @@ def main(path):
             # print(act.shape)
             obs, rew, done, _ = env.step(act)
             rews.append(rew)
-            print(act)
+            print(rew)
             # print(act)
         print(np.sum(rews))
 

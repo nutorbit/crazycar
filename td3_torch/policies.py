@@ -4,10 +4,10 @@ import torch.nn.functional as F
 
 import math
 
-from td3_torch.utils import set_seed
+from td3_torch.utils import set_seed, make_mlp
 
 
-set_seed(100)
+# set_seed(100)
 
 
 class BaseModel(nn.Module):
@@ -33,11 +33,8 @@ class BaseModel(nn.Module):
 class Actor(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
-        self.pi = nn.Sequential(
-            nn.Linear(obs_dim, 256), nn.ReLU(),
-            nn.Linear(256, 256), nn.ReLU(),
-            nn.Linear(256, act_dim), nn.Tanh()
-        ).cuda()
+        sizes = [obs_dim] + [256, 128] + [act_dim]
+        self.pi = make_mlp(sizes=sizes, activation=nn.ReLU, output_activation=nn.Tanh).cuda()
 
     def forward(self, obs):
         return self.pi(obs)
@@ -66,17 +63,9 @@ class ActorCNN(BaseModel):
 class Critic(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
-        self.q1 = nn.Sequential(
-            nn.Linear(obs_dim + act_dim, 256), nn.ReLU(),
-            nn.Linear(256, 256), nn.ReLU(),
-            nn.Linear(256, 1)
-        ).cuda()
-
-        self.q2 = nn.Sequential(
-            nn.Linear(obs_dim + act_dim, 256), nn.ReLU(),
-            nn.Linear(256, 256), nn.ReLU(),
-            nn.Linear(256, 1)
-        ).cuda()
+        sizes = [obs_dim + act_dim] + [256, 128] + [1]
+        self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU).cuda()
+        self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU).cuda()
 
     def forward(self, obs, act):
         concat = torch.cat([obs, act], dim=1)
@@ -85,6 +74,39 @@ class Critic(BaseModel):
     def q1_forward(self, obs, act):
         concat = torch.cat([obs, act], dim=1)
         return self.q1(concat)
+
+
+class DuelingQ(BaseModel):
+    def __init__(self, obs_dim, act_dim):
+        super().__init__(obs_dim, act_dim)
+        self.body = make_mlp([obs_dim] + [256, 128], nn.ReLU, nn.ReLU).cuda()
+        self.v = make_mlp([128, 1], nn.Identity).cuda()
+        self.a = make_mlp([obs_dim + act_dim, 128, 1], nn.Identity).cuda()
+
+    def forward(self, obs, act):
+
+        feature = self.body(obs)
+
+        concat = torch.cat([obs, act], dim=1)
+        v = self.v(feature)
+        a = self.a(concat)
+
+        out = v + a
+
+        return out
+
+
+class DuelingCritic(BaseModel):
+    def __init__(self, obs_dim, act_dim):
+        super().__init__(obs_dim, act_dim)
+        self.q1 = DuelingQ(obs_dim, act_dim).cuda()
+        self.q2 = DuelingQ(obs_dim, act_dim).cuda()
+
+    def forward(self, obs, act):
+        return [self.q1(obs, act), self.q2(obs, act)]
+
+    def q1_forward(self, obs, act):
+        return self.q1(obs, act)
 
 
 class CriticCNN(BaseModel):
