@@ -10,6 +10,10 @@ from td3_torch.policies import ActorCritic, ActorCriticCNN
 from pysim.environment import CrazyCar, SingleControl
 
 
+torch.set_default_dtype(torch.float64)
+# torch.set_default_tensor_type(torch.float64)
+
+
 class Agent:
     def __init__(self, observation_space, action_space, logger,
                  polyak=0.995,
@@ -35,8 +39,8 @@ class Agent:
 
         self.logger = logger
 
-        # self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
-        self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
+        self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
+        # self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
         self.replay_buffer = ReplayBuffer(observation_space.shape, action_space.shape, replay_size)
 
         # Freeze target network
@@ -59,7 +63,7 @@ class Agent:
         with torch.no_grad():  # target
             pi_target = self.ac.actor_target(obs)
 
-            noise = torch.normal(0, self.target_noise, pi_target.shape).cuda()
+            noise = torch.randn_like(pi_target) * self.target_noise
             noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
             next_act = torch.clamp(pi_target + noise, -1, 1)
 
@@ -130,7 +134,7 @@ class Agent:
             scaled_action = scaled_action.cpu().detach().numpy()
         return low + (0.5 * (scaled_action + 1.0) * (high - low))
 
-    def to_tensor(self, obs, dtype=torch.float32):
+    def to_tensor(self, obs, dtype=torch.float64):
         obs = torch.as_tensor(obs, dtype=dtype)
         return obs
 
@@ -164,15 +168,15 @@ class TD3:
                  update_after=1000,
                  update_every=50,
                  policy_delay=2,
-                 act_noise=0.5,
-                 target_noise=0.5,
+                 act_noise=0.2,
+                 target_noise=0.2,
                  noise_clip=0.5,
                  polyak=0.995,
                  gamma=0.9,
                  actor_lr=1e-5,
                  critic_lr=1e-5,
                  replay_size=100000,
-                 batch_size=500,
+                 batch_size=200,
                  seed=100):
 
         # Hyperparameter
@@ -265,10 +269,8 @@ class TD3:
                 scaled_act = self.agent.scale_action(unscaled_act)
             else:
                 scaled_act = self.agent.raw_predict(obs)
-                # print(scaled_act, scaled_act.shape)
+                print(scaled_act, scaled_act.shape)
 
-
-            # noise = np.random.normal(0, self.act_noise, scaled_act.shape[0])
             noise = np.random.normal(0, self.act_noise)
             scaled_act = np.clip(scaled_act + noise, -1, 1)
 
@@ -324,7 +326,7 @@ if __name__ == '__main__':
 
     # env = CrazyCar()
     env = SingleControl()
-    import gym
+    # import gym
 
     # env = gym.make('MountainCarContinuous-v0')
     model = TD3(env)

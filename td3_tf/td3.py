@@ -10,6 +10,9 @@ from td3_tf.policies import ActorCritic
 from pysim.environment import CrazyCar, SingleControl
 
 
+tf.config.experimental.list_physical_devices('GPU')
+
+
 class Agent:
     def __init__(self, observation_space, action_space, logger,
                  polyak=0.995,
@@ -41,52 +44,57 @@ class Agent:
     @tf.function
     def actor_loss(self, batch):
         obs = batch['obs']
-        return - tf.reduce_mean(self.ac.critic.q1_forward(obs, self.ac.actor(obs)))
+        with tf.device("/gpu:0"):
+            return - tf.reduce_mean(self.ac.critic.q1_forward(obs, self.ac.actor(obs)))
 
     @tf.function
     def critic_loss(self, batch):
         obs, act, next_obs, rew, done = batch['obs'], batch['act'], batch['next_obs'], batch['rew'], batch['done']
 
-        pi_target = self.ac.actor_target(obs)
+        with tf.device("/gpu:0"):
 
-        noise = tf.random.normal(mean=0, stddev=0.1, shape=pi_target.shape) * self.target_noise
-        noise = tf.clip_by_value(noise, -self.noise_clip, self.noise_clip)
-        next_act = tf.clip_by_value(pi_target + noise, -1, 1)
+            pi_target = self.ac.actor_target(obs)
 
-        target_q1, target_q2 = self.ac.critic_target(obs, next_act)
-        target_q = tf.minimum(target_q1, target_q2)
-        backup = rew + tf.stop_gradient(self.gamma * (1.0 - done) * target_q)
+            noise = tf.random.normal(stddev=self.target_noise, shape=pi_target.shape)
+            noise = tf.clip_by_value(noise, -self.noise_clip, self.noise_clip)
+            next_act = tf.clip_by_value(pi_target + noise, -1, 1)
 
-        current_q1, current_q2 = self.ac.critic(obs, act)
+            target_q1, target_q2 = self.ac.critic_target(obs, next_act)
+            target_q = tf.minimum(target_q1, target_q2)
+            backup = rew + tf.stop_gradient(self.gamma * (1.0 - done) * target_q)
 
-        loss_q1 = k.losses.MSE(current_q1, target_q)
-        loss_q2 = k.losses.MSE(current_q2, target_q)
+            current_q1, current_q2 = self.ac.critic(obs, act)
 
-        loss_q = loss_q1 + loss_q2
+            loss_q1 = k.losses.MSE(current_q1, backup)
+            loss_q2 = k.losses.MSE(current_q2, backup)
+
+            loss_q = loss_q1 + loss_q2
 
         return loss_q
 
     @tf.function
     def update_critic(self, batch):
-        with tf.GradientTape() as critic_tape:
-            critic_tape.watch(self.ac.critic.trainable_variables)
-            critic_loss = self.critic_loss(batch)
+        with tf.device("/gpu:0"):
+            with tf.GradientTape() as critic_tape:
+                critic_tape.watch(self.ac.critic.trainable_variables)
+                critic_loss = self.critic_loss(batch)
 
-        # Optimize the critic
-        grads_critic = critic_tape.gradient(critic_loss, self.ac.critic.trainable_variables)
-        self.ac.critic.optimizer.apply_gradients(zip(grads_critic, self.ac.critic.trainable_variables))
+            # Optimize the critic
+            grads_critic = critic_tape.gradient(critic_loss, self.ac.critic.trainable_variables)
+            self.ac.critic.optimizer.apply_gradients(zip(grads_critic, self.ac.critic.trainable_variables))
 
         return critic_loss
 
     @tf.function
     def update_actor(self, batch):
-        with tf.GradientTape() as actor_tape:
-            actor_tape.watch(self.ac.actor.trainable_variables)
-            actor_loss = self.actor_loss(batch)
+        with tf.device("/gpu:0"):
+            with tf.GradientTape() as actor_tape:
+                actor_tape.watch(self.ac.actor.trainable_variables)
+                actor_loss = self.actor_loss(batch)
 
-        # Optimize the actor
-        grads_actor = actor_tape.gradient(actor_loss, self.ac.actor.trainable_variables)
-        self.ac.actor.optimizer.apply_gradients(zip(grads_actor, self.ac.actor.trainable_variables))
+            # Optimize the actor
+            grads_actor = actor_tape.gradient(actor_loss, self.ac.actor.trainable_variables)
+            self.ac.actor.optimizer.apply_gradients(zip(grads_actor, self.ac.actor.trainable_variables))
 
         return actor_loss
 
@@ -138,14 +146,14 @@ class TD3:
                  start_steps=10000,
                  update_after=1000,
                  update_every=50,
-                 act_noise=0.1,
+                 act_noise=0.2,
                  policy_delay=2,
                  polyak=0.995,
                  gamma=0.9,
                  noise_clip=0.5,
                  target_noise=0.02,
                  replay_size=100000,
-                 batch_size=100,
+                 batch_size=500,
                  actor_lr=1e-3,
                  critic_lr=1e-3,
                  seed=100):
@@ -282,6 +290,10 @@ class TD3:
                 print(f"Reward: {mean_rew}")
                 print(f"Steps: {mean_steps}")
 
+                # reset
+                obs = self.env.reset()
+                episode_rew, episode_len = 0, 0
+
                 # save model here
                 self.logger.save_model(self.agent.ac)
 
@@ -289,6 +301,7 @@ class TD3:
 
 
 if __name__ == '__main__':
+
     env = SingleControl()
     model = TD3(env)
     model.learn(1000)

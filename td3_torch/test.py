@@ -28,9 +28,10 @@ def main(path):
             act = model.agent.predict(obs)
             # print(act.shape)
             obs, rew, done, _ = env.step(act)
+            # print(obs)
             rews.append(rew)
-            print(rew)
-            # print(act)
+            print("Reward:", rew)
+            print("Action", act)
         print(np.sum(rews))
 
 

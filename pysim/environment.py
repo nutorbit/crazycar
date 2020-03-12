@@ -158,7 +158,8 @@ class CrazyCar(ABC):
 
         diffAngle = self._racecar.diffAngle()
 
-        reward = self._speed * 10 * math.cos(diffAngle) - self._speed * 10 * math.sin(diffAngle)
+        reward = self._speed * math.cos(diffAngle) - self._speed * math.sin(diffAngle)
+        reward = reward if reward > 0 else 0
         
         x, y, yaw = self._racecar.getCoordinate()
 
@@ -239,7 +240,6 @@ class MultiCar(CrazyCar):
                 if self._termination():
                     break
                 self._envStepCounter += 1
-
 
             reward = self._reward()
             done   = self._termination()

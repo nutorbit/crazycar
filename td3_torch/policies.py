@@ -33,7 +33,7 @@ class BaseModel(nn.Module):
 class Actor(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
-        sizes = [obs_dim] + [256, 128] + [act_dim]
+        sizes = [obs_dim] + [256, 256, 256] + [act_dim]
         self.pi = make_mlp(sizes=sizes, activation=nn.ReLU, output_activation=nn.Tanh).cuda()
 
     def forward(self, obs):
@@ -63,7 +63,7 @@ class ActorCNN(BaseModel):
 class Critic(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
-        sizes = [obs_dim + act_dim] + [256, 128] + [1]
+        sizes = [obs_dim + act_dim] + [256, 256, 256] + [1]
         self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU).cuda()
         self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU).cuda()
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
     ac = ActorCriticCNN(28, 1)
 
-    obs = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
+    obs = torch.as_tensor(obs, dtype=torch.float64).unsqueeze(0)
 
     print(obs.shape)
     # print(obs.unsqueeze(0).shape)

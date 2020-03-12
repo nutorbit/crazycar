@@ -71,11 +71,11 @@ class BaseReplayBuffer:
 
     def add(self, obs, next_obs, act, rew, done):
         self.buffer.add(
-            obs=np.asarray(obs, dtype=np.float32),
-            next_obs=np.asarray(next_obs, dtype=np.float32),
-            act=np.asarray(act, dtype=np.float32),
-            rew=np.asarray(rew, dtype=np.float32),
-            done=np.asarray(done, dtype=np.float32),
+            obs=np.asarray(obs, dtype=np.float64),
+            next_obs=np.asarray(next_obs, dtype=np.float64),
+            act=np.asarray(act, dtype=np.float64),
+            rew=np.asarray(rew, dtype=np.float64),
+            done=np.asarray(done, dtype=np.float64),
         )
 
 
@@ -87,7 +87,7 @@ class ReplayBuffer(BaseReplayBuffer):
 
     def sample(self, batch_size=32):
         batch = self.buffer.sample(batch_size)
-        payload = {k: torch.as_tensor(v, dtype=torch.float32).cuda() for k, v in batch.items()}
+        payload = {k: torch.as_tensor(v, dtype=torch.float64).cuda() for k, v in batch.items()}
 
         return payload
 
@@ -103,7 +103,7 @@ class PriorityReplayBuffer(BaseReplayBuffer):
         indexes, weights = batch['indexes'], batch['weights']
         # self.buffer.update_priorities(indexes, weights)
 
-        payload = {k: torch.as_tensor(v, dtype=torch.float32).cuda() for k, v in list(batch.items())[:-2]}
+        payload = {k: torch.as_tensor(v, dtype=torch.float64).cuda() for k, v in list(batch.items())[:-2]}
 
         return payload
 
