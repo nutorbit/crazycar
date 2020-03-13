@@ -4,21 +4,20 @@ import numpy as np
 
 from tqdm import trange
 
-from td3_torch.utils import ReplayBuffer, Logger, set_seed, huber_loss
+from td3_torch.utils import Logger, set_seed, huber_loss, get_default_rb_dict
 from td3_torch.policies import ActorCritic, ActorCriticCNN
 
 from pysim.environment import CrazyCar, SingleControl
 
-
-torch.set_default_dtype(torch.float64)
-# torch.set_default_tensor_type(torch.float64)
+# from cpprb import PrioritizedReplayBuffer
+from cpprb import ReplayBuffer
 
 
 class Agent:
     def __init__(self, observation_space, action_space, logger,
                  polyak=0.995,
                  gamma=0.9,
-                 target_noise=0.02,
+                 target_noise=0.2,
                  replay_size=100000,
                  noise_clip=0.5,
                  policy_delay=2,
@@ -41,7 +40,9 @@ class Agent:
 
         self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
         # self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
-        self.replay_buffer = ReplayBuffer(observation_space.shape, action_space.shape, replay_size)
+
+        rb_kwargs = get_default_rb_dict(observation_space.shape[0], action_space.shape[0], replay_size)
+        self.replay_buffer = ReplayBuffer(**rb_kwargs)
 
         # Freeze target network
         for p in self.ac.actor_target.parameters():
@@ -59,6 +60,8 @@ class Agent:
 
     def critic_loss(self, batch):
         obs, act, next_obs, rew, done = batch['obs'], batch['act'], batch['next_obs'], batch['rew'], batch['done']
+
+        # print(obs.shape, act.shape, next_obs.shape, rew.shape, done.shape)
 
         with torch.no_grad():  # target
             pi_target = self.ac.actor_target(obs)
@@ -85,6 +88,19 @@ class Agent:
         loss_q = loss_q1 + loss_q2
 
         return loss_q
+
+    def compute_td_error(self, obs, act, next_obs, rew, done):
+        with torch.no_grad():
+            target_q1, target_q2 = self.ac.critic_target(next_obs, self.ac.actor_target(next_obs))
+            target_q = torch.min(target_q1, target_q2)
+            target_q = rew + ((1 - done) * self.gamma * target_q)
+
+            current_q1, current_q2 = self.ac.critic(obs, act)
+
+            td_error1 = target_q - current_q1
+            td_error2 = target_q - current_q2
+
+        return torch.abs(td_error1) + torch.abs(td_error2)
 
     def update_targets(self):
         self.ac.actor_target.soft_update(self.ac.actor, self.polyak)
@@ -134,9 +150,23 @@ class Agent:
             scaled_action = scaled_action.cpu().detach().numpy()
         return low + (0.5 * (scaled_action + 1.0) * (high - low))
 
-    def to_tensor(self, obs, dtype=torch.float64):
+    def to_tensor(self, obs, dtype=torch.float32):
         obs = torch.as_tensor(obs, dtype=dtype)
         return obs
+
+    def get_action_noise(self, obs):
+        self.ac.actor.eval()
+
+        act = self.raw_predict(obs)
+
+        # add noise
+        noise = np.random.normal(0, self.target_noise)
+        scaled_act = np.clip(act + noise, -1, 1)
+        # print("Noise:", noise)
+
+        self.ac.actor.train()
+
+        return self.unscale_action(scaled_act)
 
     def predict(self, obs):
         self.ac.actor.eval()
@@ -269,7 +299,7 @@ class TD3:
                 scaled_act = self.agent.scale_action(unscaled_act)
             else:
                 scaled_act = self.agent.raw_predict(obs)
-                print(scaled_act, scaled_act.shape)
+                # print(scaled_act, scaled_act.shape)
 
             noise = np.random.normal(0, self.act_noise)
             scaled_act = np.clip(scaled_act + noise, -1, 1)
@@ -280,7 +310,7 @@ class TD3:
             episode_rew += rew
             episode_len += 1
 
-            self.agent.replay_buffer.add(obs, next_obs, scaled_act, rew, done)
+            self.agent.replay_buffer.add(obs=obs, next_obs=next_obs, act=scaled_act, rew=rew, done=done)
 
             obs = next_obs
 
@@ -297,6 +327,7 @@ class TD3:
                 # time.sleep(3)
                 for j in range(self.update_every):
                     batch = self.agent.replay_buffer.sample(self.batch_size)
+                    batch = {key: torch.as_tensor(val, dtype=torch.float32).cuda() for key, val in batch.items()}
                     self.agent.update(batch, j)
 
             if (t+1) % self.steps_per_epoch == 0:
@@ -320,14 +351,14 @@ if __name__ == '__main__':
     print(f"[STATUS] CUDA: {torch.cuda.is_available()}")
     print(f"[STATUS] GPU: {torch.cuda.get_device_name(0)}")
 
-    torch.cuda.empty_cache()
-    torch.cuda.memory_allocated()
-    torch.set_num_threads(12)
+    # torch.cuda.empty_cache()
+    # torch.cuda.memory_allocated()
+    # torch.set_num_threads(12)
 
     # env = CrazyCar()
     env = SingleControl()
     # import gym
-
+    # set_seed(100)
     # env = gym.make('MountainCarContinuous-v0')
     model = TD3(env)
     model.learn(1000)
