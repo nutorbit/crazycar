@@ -17,7 +17,7 @@ class MultiThreadEnv(object):
         sample_env = env_fn()
         sample_obs = sample_env.reset()
         self._sample_env = sample_env
-        self.observation_shape = sample_obs.shape
+        self.observation_shape = sample_obs.shape[0]
 
         # episode time limit
         self.max_episode_steps = max_episode_steps
@@ -35,11 +35,11 @@ class MultiThreadEnv(object):
 
     def step(self, actions):
 
-        obs, rew, done = self._step(actions)
+        obs, rew, done = self.py_step(actions)
 
         obs = obs.reshape((self.batch_size, self.observation_shape))
-        rew = rew.reshape((self.batch_size, ))
-        done = done.reshape((self.batch_size, ))
+        rew = rew.reshape((self.batch_size, 1))
+        done = done.reshape((self.batch_size, 1))
 
         return obs, rew, done, None
 
@@ -47,8 +47,7 @@ class MultiThreadEnv(object):
 
         def _process(offset):
             for idx_env in range(offset, offset+self.batch_thread):
-                next_obs, rew, done, _ = self.envs[idx_env].step(
-                    actions[idx_env].numpy())
+                next_obs, rew, done, _ = self.envs[idx_env].step(actions[idx_env])
                 self.list_obs[idx_env] = next_obs
                 self.list_rewards[idx_env] = rew
                 self.list_done[idx_env] = done
