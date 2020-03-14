@@ -9,7 +9,7 @@ from td3_torch.policies import ActorCritic, ActorCriticCNN
 
 from pysim.environment import CrazyCar, SingleControl
 
-# from cpprb import PrioritizedReplayBuffer
+from cpprb import PrioritizedReplayBuffer
 from cpprb import ReplayBuffer
 
 
@@ -42,7 +42,8 @@ class Agent:
         # self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
 
         rb_kwargs = get_default_rb_dict(observation_space.shape[0], action_space.shape[0], replay_size)
-        self.replay_buffer = ReplayBuffer(**rb_kwargs)
+        # self.replay_buffer = ReplayBuffer(**rb_kwargs)
+        self.replay_buffer = PrioritizedReplayBuffer(**rb_kwargs)
 
         # Freeze target network
         for p in self.ac.actor_target.parameters():
@@ -59,7 +60,8 @@ class Agent:
         return - self.ac.critic.q1_forward(obs, self.ac.actor(obs)).mean()
 
     def critic_loss(self, batch):
-        obs, act, next_obs, rew, done = batch['obs'], batch['act'], batch['next_obs'], batch['rew'], batch['done']
+        obs, act, next_obs, rew, done, weights = batch['obs'], batch['act'], batch['next_obs'], batch['rew'], \
+                                                 batch['done'], batch['weights']
 
         # print(obs.shape, act.shape, next_obs.shape, rew.shape, done.shape)
 
@@ -82,8 +84,8 @@ class Agent:
         # loss_q1 = (td_error1 ** 2).mean()
         # loss_q2 = (td_error2 ** 2).mean()
 
-        loss_q1 = huber_loss(td_error1).mean()
-        loss_q2 = huber_loss(td_error2).mean()
+        loss_q1 = torch.mean(huber_loss(td_error1) * weights)
+        loss_q2 = torch.mean(huber_loss(td_error2) * weights)
 
         loss_q = loss_q1 + loss_q2
 
@@ -323,12 +325,22 @@ class TD3:
                 episode_rew, episode_len = 0, 0
 
             if t > self.update_after and t % self.update_every == 0:
-                # print("update")
-                # time.sleep(3)
                 for j in range(self.update_every):
                     batch = self.agent.replay_buffer.sample(self.batch_size)
-                    batch = {key: torch.as_tensor(val, dtype=torch.float32).cuda() for key, val in batch.items()}
+                    batch = {
+                        key: torch.as_tensor(val, dtype=torch.float32).cuda() if key != 'indexes' else val
+                        for key, val in batch.items()
+                    }
+
+                    # update
                     self.agent.update(batch, j)
+
+                    # Calculate td error for PER
+                    td_error = self.agent.compute_td_error(batch['obs'], batch['act'], batch['next_obs'],
+                                                           batch['rew'], batch['done']).cpu().data.numpy()
+
+                    # update priorities
+                    self.agent.replay_buffer.update_priorities(batch['indexes'], np.abs(td_error) + 1e-6)
 
             if (t+1) % self.steps_per_epoch == 0:
                 epoch = (t+1)//self.steps_per_epoch
