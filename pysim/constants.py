@@ -9,7 +9,7 @@ CAMERA_HEIGHT = 50
 
 CAMERA_WIDTH = 50
 
-RANDOM_POSITION = False
+RANDOM_POSITION = True
 
 OBSERVATION_TYPE = 'sensor' # (image, sensor, sensor+image)
 
