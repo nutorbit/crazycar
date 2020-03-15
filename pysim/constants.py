@@ -5,13 +5,13 @@ ACTION_REP = 1
 
 MAX_STEPS = 10000
 
-CAMERA_HEIGHT = 100
+CAMERA_HEIGHT = 50
 
-CAMERA_WIDTH = 100
+CAMERA_WIDTH = 50
 
-RANDOM_POSITION = False
+RANDOM_POSITION = True
 
-OBSERVATION_TYPE = 'image' # (image, sensor, sensor+image)
+OBSERVATION_TYPE = 'sensor' # (image, sensor, sensor+image)
 
 N_PARALLEL = 16
 

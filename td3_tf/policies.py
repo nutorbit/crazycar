@@ -2,12 +2,13 @@ import tensorflow as tf
 import tensorflow.keras as k
 
 
-class AbstractModel(k.Model):
+class BaseModel(k.Model):
     def __init__(self, obs_dim, act_dim):
         super().__init__()
         self.obs_dim = obs_dim
         self.act_dim = act_dim
 
+    @tf.function
     def soft_update(self, other_network, tau):
         other_variables = other_network.trainable_variables
         current_variables = self.trainable_variables
@@ -19,7 +20,7 @@ class AbstractModel(k.Model):
         self.soft_update(other_network, tau=1.)
 
 
-class Actor(AbstractModel):
+class Actor(BaseModel):
 
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
@@ -32,12 +33,13 @@ class Actor(AbstractModel):
 
         self.pi.build()
 
+    @tf.function
     def call(self, states):
         out = self.pi(states)
         return out
 
 
-class Critic(AbstractModel):
+class Critic(BaseModel):
 
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
@@ -57,10 +59,12 @@ class Critic(AbstractModel):
         self.q1.build()
         self.q2.build()
 
+    @tf.function
     def call(self, obs, act):
         concat = tf.concat([obs, act], axis=1)
         return [self.q1(concat), self.q2(concat)]
 
+    @tf.function
     def q1_forward(self, obs, act):
         concat = tf.concat([obs, act], axis=1)
         return self.q1(concat)

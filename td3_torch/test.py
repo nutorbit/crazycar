@@ -7,7 +7,7 @@ from pysim.environment import CrazyCar, SingleControl
 
 
 @click.command()
-@click.option('--path', default='./models/Mar_06_2020_122846/td3_284000.pth', help='number of update')
+@click.option('--path', default='./models/Mar_06_2020_122846/td3_284000.pth')
 def main(path):
     env = SingleControl(renders=True)
     model = TD3(env)
@@ -28,9 +28,10 @@ def main(path):
             act = model.agent.predict(obs)
             # print(act.shape)
             obs, rew, done, _ = env.step(act)
+            # print(obs)
             rews.append(rew)
-            print(rew)
-            # print(act)
+            print("Reward:", rew)
+            print("Action", act)
         print(np.sum(rews))
 
 
