@@ -13,8 +13,6 @@ RANDOM_POSITION = True
 
 OBSERVATION_TYPE = 'sensor' # (image, sensor, sensor+image)
 
-N_PARALLEL = 16
-
 MAX_SPEED = 1
 MIN_SPEED = -1
 
