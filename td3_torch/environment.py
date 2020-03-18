@@ -67,7 +67,7 @@ class MultiThreadEnv(object):
             if self.list_steps[i] == self.max_episode_steps:
                 self.list_done[i] = False
 
-        obs = np.stack(self.list_obs, axis=0)
+        obs = np.stack(self.list_obs, axis=0).astype(np.float32)
         rew = np.stack(self.list_rewards, axis=0).astype(np.float32)
         done = np.stack(self.list_done, axis=0).astype(np.float32)
 
@@ -100,3 +100,15 @@ class MultiThreadEnv(object):
     @property
     def state_dim(self):
         return self._sample_env.observation_space.shape[0]
+
+
+if __name__ == '__main__':
+
+    from pysim.environment import SingleControl
+
+    env_fn = lambda: SingleControl()
+    env = MultiThreadEnv(env_fn, 2)
+    obs, rew, done, _ = env.step([0, 0])
+    print("obs:", obs)
+    print("rew:", obs)
+    print("done:", obs)
