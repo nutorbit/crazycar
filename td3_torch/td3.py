@@ -173,9 +173,7 @@ class Agent:
     def predict(self, obs):
         self.ac.actor.eval()
 
-        obs = np.expand_dims(obs, axis=0)
-        obs = self.to_tensor(obs).cuda()
-        act = self.ac.act(obs).cpu().data.numpy()
+        act = self.raw_predict(obs)
 
         self.ac.actor.train()
 
@@ -351,8 +349,8 @@ class TD3:
                 self.logger.store('Steps/test', mean_steps)
 
                 # save model here
-                if best_rew < mean_rew:
-                    best_rew = mean_rew
+                if best_rew < mean_steps:
+                    best_rew = mean_steps
                     self.logger.save_model(self.agent.ac)
 
             self.logger.update_steps()
