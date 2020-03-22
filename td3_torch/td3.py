@@ -354,7 +354,7 @@ class TD3:
                     self.logger.save_model(self.agent.ac)
 
                     # line message
-                    notify.alert(f"{self.env.__class__.__name__}\nReward: {mean_rew}\nTimestep: {t+1}/{total_timesteps}")
+                    notify.alert(f"{self.env.__class__.__name__}\nReward: {mean_rew:.3f}\nSteps:{mean_steps:.3f}\nTimestep: {t+1}/{total_timesteps}")
 
             self.logger.update_steps()
 

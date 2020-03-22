@@ -100,12 +100,16 @@ class Racecar:
         x, y, yaw = self.getCoordinate()
 
         in0   = any([func(x, y) for func in self._direction_field[0]])
+        in45  = any([func(x, y) for func in self._direction_field[45]])
         in90  = any([func(x, y) for func in self._direction_field[90]])
+        in135 = any([func(x, y) for func in self._direction_field[135]])
         in180 = any([func(x, y) for func in self._direction_field[180]])
-        in270 = any([func(x, y) for func in self._direction_field[-90]])
+        in225 = any([func(x, y) for func in self._direction_field[225]])
+        in270 = any([func(x, y) for func in self._direction_field[270]])
+        in315 = any([func(x, y) for func in self._direction_field[315]])
 
 
-        if not (in0 or in90 or in180 or in270): # not in any field.
+        if not (in0 or in45 or in90 or in135 or in180 or in225 or in270 or in315): # not in any field.
             # TODO: condition something.
             # print('*****************************')
             return 0
@@ -115,15 +119,27 @@ class Racecar:
             if in0:
                 # print(0)
                 return abs(yaw-0)
+            if in45:
+                # print(45)
+                return abs(yaw-math.pi/4)
             if in90:
                 # print(90)
                 return abs(yaw-math.pi/2)
+            if in135:
+                # print(135)
+                return abs(yaw-math.pi/2-math.pi/4)
             if in180:
                 # print(180)
                 return abs(abs(yaw)-math.pi)
+            if in225:
+                # print(225)
+                return abs(yaw+math.pi/2+math.pi/4)
             if in270:
                 # print(270)
                 return abs(yaw+math.pi/2)
+            if in315:
+                # print(in315)
+                return abs(yaw+math.pi/4)
 
     def getSensor(self):
         x_, y_, yaw = self.getCoordinate()

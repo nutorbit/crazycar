@@ -98,7 +98,7 @@ class CrazyCar(ABC):
             if RANDOM_POSITION:
                 carPos = self._poscar.getNewPosition(random.randint(1, 11))
             else:
-                carPos = self._poscar.getNewPosition(4)
+                carPos = self._poscar.getNewPosition(1)
         else:
             carPos = newCarPos
 
@@ -262,4 +262,6 @@ if __name__ == '__main__':
     env.reset([2.9 - 0.7/2, 0.8, math.pi/2.0])
     env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
     while 1:
+        # obs, rew, done, _ = env.step(0)
+        # print(rew)
         pass
