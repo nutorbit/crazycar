@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-
+import notify
 
 from tqdm import trange
 
@@ -352,6 +352,9 @@ class TD3:
                 if best_rew < mean_steps:
                     best_rew = mean_steps
                     self.logger.save_model(self.agent.ac)
+
+                    # line message
+                    notify.alert(f"{self.env.__class__.__name__}\nReward: {mean_rew}\nTimestep: {t+1}/{total_timesteps}")
 
             self.logger.update_steps()
 
