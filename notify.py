@@ -9,7 +9,10 @@ headers = {
 
 
 def alert(message="test"):
-    _ = requests.post(url=url, data={"message": message}, headers=headers)
+    try:
+        _ = requests.post(url=url, data={"message": message}, headers=headers)
+    except:
+        pass
 
 
 if __name__ == "__main__":
