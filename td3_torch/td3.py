@@ -41,7 +41,7 @@ class Agent:
         self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
         # self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
 
-        rb_kwargs = get_default_rb_dict(observation_space.shape[0], action_space.shape[0], replay_size)
+        rb_kwargs = get_default_rb_dict(observation_space.shape, action_space.shape[0], replay_size)
         # self.replay_buffer = ReplayBuffer(**rb_kwargs)
         self.replay_buffer = PrioritizedReplayBuffer(**rb_kwargs)
 
