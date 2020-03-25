@@ -38,7 +38,7 @@ class Apex:
         self.observation_space = self.sample_env.observation_space
         self.action_space = self.sample_env.action_space
 
-        rb_kwargs = get_default_rb_dict(self.observation_space.shape[0], self.action_space.shape[0], int(1e6))
+        rb_kwargs = get_default_rb_dict(self.observation_space.shape, self.action_space.shape, int(1e6))
         rb_kwargs["check_for_update"] = True
         self.global_rb = manager.PrioritizedReplayBuffer(**rb_kwargs)
 
@@ -87,7 +87,7 @@ class Apex:
             env=env
         )
 
-        rb_kwargs = get_default_rb_dict(self.observation_space.shape[0], self.action_space.shape[0], 1024)
+        rb_kwargs = get_default_rb_dict(self.observation_space.shape, self.action_space.shape[0], 1024)
         rb_kwargs["env_dict"]["priorities"] = {}
         local_rb = ReplayBuffer(**rb_kwargs)
         local_idx = np.arange(1024)
@@ -96,6 +96,7 @@ class Apex:
 
         while not self.is_training_done.is_set():
             n_sample += self.batch_size
+            print(n_sample)
             obses = envs.py_observation()
             actions = policy.agent.get_action_noise(obses)[0]
             # print(actions, actions.shape)
@@ -108,9 +109,16 @@ class Apex:
             rews = torch.as_tensor(rews, dtype=torch.float32).cuda()
             dones = torch.as_tensor(dones, dtype=torch.float32).cuda()
 
-            td_errors = policy.agent.compute_td_error(obses, actions, next_obses, rews, dones).cpu().numpy()
+            td_errors = policy.agent.compute_td_error(obses, actions, next_obses, rews, dones)
 
-            local_rb.add(obs=obses, act=actions, next_obs=next_obses, rew=rews, done=dones, priorities=td_errors + 1e-6)
+            local_rb.add(
+                obs=obses.cpu().numpy(),
+                act=actions.cpu().numpy(),
+                next_obs=next_obses.cpu().numpy(),
+                rew=rews.cpu().numpy(),
+                done=dones.cpu().numpy(),
+                priorities=td_errors.cpu().numpy() + 1e-6
+            )
 
             if not self.queues[0].empty():
                 self.set_weights_fn(policy, self.queues[0].get())
@@ -158,7 +166,7 @@ if __name__ == "__main__":
 
     runner = Apex(
         env_fn=lambda: SingleControl(),
-        batch_size=500,
+        batch_size=4,
         thread_pool=4
     )
     runner.explorer()
