@@ -88,17 +88,17 @@ class CrazyCar(ABC):
         self._terminate = False
         self._collisionCounter = 0
 
-    def reset(self, newCarPos=None):
+    def reset(self, random_position=True, newCarPos=None, PosIndex=1):
         
         # reset
         self._reset()
 
         # spawn car
         if newCarPos is None:
-            if RANDOM_POSITION:
+            if random_position:
                 carPos = self._poscar.getNewPosition(random.randint(1, 11))
             else:
-                carPos = self._poscar.getNewPosition(1)
+                carPos = self._poscar.getNewPosition(PosIndex)
         else:
             carPos = newCarPos
 
@@ -157,11 +157,17 @@ class CrazyCar(ABC):
     def _reward(self):
 
         diffAngle = self._racecar.diffAngle()
+        angleField = self._racecar.getAngleField()
 
-        reward = self._speed * math.cos(diffAngle) - self._speed * math.sin(diffAngle)
-        reward = reward if reward > 0 else reward/10
-        
-        x, y, yaw = self._racecar.getCoordinate()
+        # cross road
+        isCross = angleField in list(range(45, 360, 90))
+
+        # sensors
+        sensors = self._racecar.getSensor()
+
+        reward = self._speed * math.cos(diffAngle) + self._speed * (0.5 ** (abs(sensors[0] - sensors[-1]))) - self._speed * math.sin(diffAngle)
+
+        # x, y, yaw = self._racecar.getCoordinate()
 
         if self._racecar.isCollision():
 
@@ -259,7 +265,8 @@ class MultiCar(CrazyCar):
 
 if __name__ == '__main__':
     env = SingleControl(renders=True)
-    env.reset([2.9 - 0.7/2, 0.8, math.pi/2.0])
+    # env.reset([2.9 - 0.7/2, 0.8, math.pi/2.0])
+    # env.reset(random_position=False, PosIndex=6)
     env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
     while 1:
         # obs, rew, done, _ = env.step(0)
