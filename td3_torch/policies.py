@@ -140,6 +140,7 @@ class ImpalaCNN(nn.Module):
     The CNN architecture used in the IMPALA paper.
     Ref: https://arxiv.org/abs/1802.01561
     """
+
     def __init__(self, image_size, depth_in=4):
         super().__init__()
         layers = []
@@ -168,6 +169,7 @@ class ImpalaResidual(nn.Module):
     """
     A residual block for an IMPALA CNN.
     """
+
     def __init__(self, depth):
         super().__init__()
         self.conv1 = nn.Conv2d(depth, depth, 3, padding=1)
@@ -186,6 +188,7 @@ class FixupCNN(nn.Module):
     A larger version of the IMPALA CNN with Fixup init.
     Ref: https://arxiv.org/abs/1901.09321.
     """
+
     def __init__(self, image_size, depth_in=4):
         super().__init__()
         layers = []
@@ -218,6 +221,7 @@ class FixupResidual(nn.Module):
     """
     A residual block for an Fixup CNN.
     """
+
     def __init__(self, depth, num_residual):
         super().__init__()
         self.conv1 = nn.Conv2d(depth, depth, 3, padding=1, bias=False)
