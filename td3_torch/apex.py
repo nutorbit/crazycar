@@ -1,16 +1,15 @@
-import multiprocessing
 import threading
 import torch
+import cloudpickle
 
 import numpy as np
 
 from pysim.environment import SingleControl
 
-from td3_torch.environment import MultiThreadEnv
 from td3_torch.utils import get_default_rb_dict
 from td3_torch.td3 import TD3
 
-from multiprocessing import Process, Queue, Value, Event, Lock
+from multiprocessing import Process, Queue, Value, Event, Lock, cpu_count
 from multiprocessing.managers import SyncManager
 
 from cpprb import ReplayBuffer, PrioritizedReplayBuffer
@@ -21,12 +20,12 @@ class Apex:
     Ref: https://arxiv.org/pdf/1803.00933.pdf
     """
 
-    def __init__(self, env_fn, batch_size, thread_pool):
+    def __init__(self, env_fn, total_steps):
         self.env_fn = env_fn
         self.sample_env = env_fn()
-        self.env = env_fn()
-        self.batch_size = batch_size
-        self.thread_pool = thread_pool
+        self.total_steps = total_steps
+        # self.n_explorer = cpu_count() - 2
+        self.n_explorer = 10
 
         # Create manager to share PER between a learner and explorers.
         SyncManager.register('PrioritizedReplayBuffer', PrioritizedReplayBuffer)
@@ -42,7 +41,7 @@ class Apex:
         rb_kwargs["check_for_update"] = True
         self.global_rb = manager.PrioritizedReplayBuffer(**rb_kwargs)
 
-        self.queues = [manager.Queue() for _ in range(2)]
+        self.queues = [manager.Queue() for _ in range(self.n_explorer + 1)]
 
         self.is_training_done = Event()
 
@@ -51,10 +50,10 @@ class Apex:
         self.trained_steps = Value('i', 0)
 
     @staticmethod
-    def policy_fn(env, replay_size=int(1e6)):
+    def policy_fn(env, device='cpu'):
         return TD3(
             env=env,
-            replay_size=replay_size
+            device=device
         )
 
     @staticmethod
@@ -70,103 +69,249 @@ class Apex:
     def set_weights_fn(policy, ac):
         actor, actor_target, critic, critic_target = ac
 
-        policy.agent.ac.actor.hard_update(actor)
-        policy.agent.ac.actor_target.hard_update(actor_target)
-        policy.agent.ac.critic.hard_update(critic)
-        policy.agent.ac.critic_target.hard_update(critic_target)
+        policy.agent.ac.actor.soft_update(actor, 0)
+        policy.agent.ac.actor_target.soft_update(actor_target, 0)
+        policy.agent.ac.critic.soft_update(critic, 0)
+        policy.agent.ac.critic_target.soft_update(critic_target, 0)
 
-    def explorer(self):
-        envs = MultiThreadEnv(
-            env_fn=self.env_fn,
-            batch_size=self.batch_size,
-            thread_pool=self.thread_pool
+    @staticmethod
+    def explorer(name, global_rb, queue, is_training_done,
+                 lock, env_fn, policy_fn, set_weights_fn):
+
+        print(f"Explore {name}: Starting...")
+
+        env_fn = cloudpickle.loads(env_fn)
+        policy_fn = cloudpickle.loads(policy_fn)
+        set_weights_fn = cloudpickle.loads(set_weights_fn)
+
+        env = env_fn()
+
+        policy = policy_fn(
+            env=env,
+            device='cpu'
         )
-        env = envs._sample_env
 
-        policy = self.policy_fn(
-            env=env
-        )
+        policy.agent.name = name
 
-        rb_kwargs = get_default_rb_dict(self.observation_space.shape, self.action_space.shape[0], 1024)
-        rb_kwargs["env_dict"]["priorities"] = {}
+        rb_kwargs = get_default_rb_dict(env.observation_space.shape, env.action_space.shape, 2000)
         local_rb = ReplayBuffer(**rb_kwargs)
-        local_idx = np.arange(1024)
 
         n_sample, n_sample_old = 0, 0
 
-        while not self.is_training_done.is_set():
-            n_sample += self.batch_size
-            print(n_sample)
-            obses = envs.py_observation()
-            actions = policy.agent.get_action_noise(obses)[0]
-            # print(actions, actions.shape)
-            next_obses, rews, dones, _ = envs.step(actions)
+        obs = env.reset()
+        total_reward = 0.
+        total_rewards = []
 
-            # transform to tensor
-            obses = torch.as_tensor(obses, dtype=torch.float32).cuda()
-            actions = torch.as_tensor(actions, dtype=torch.float32).cuda()
-            next_obses = torch.as_tensor(next_obses, dtype=torch.float32).cuda()
-            rews = torch.as_tensor(rews, dtype=torch.float32).cuda()
-            dones = torch.as_tensor(dones, dtype=torch.float32).cuda()
+        while not is_training_done.is_set():
+            n_sample += 1
 
-            td_errors = policy.agent.compute_td_error(obses, actions, next_obses, rews, dones)
+            act = policy.agent.get_action_noise(obs)
 
-            local_rb.add(
-                obs=obses.cpu().numpy(),
-                act=actions.cpu().numpy(),
-                next_obs=next_obses.cpu().numpy(),
-                rew=rews.cpu().numpy(),
-                done=dones.cpu().numpy(),
-                priorities=td_errors.cpu().numpy() + 1e-6
-            )
+            next_obs, rew, done, _ = env.step(act)
 
-            if not self.queues[0].empty():
-                self.set_weights_fn(policy, self.queues[0].get())
+            local_rb.add(obs=obs, act=act, next_obs=next_obs, rew=rew, done=done)
+
+            total_reward += rew
+            obs = next_obs
+
+            if done:
+                obs = env.reset()
+                total_rewards.append(total_reward)
+                total_reward = 0
+
+            if not queue.empty():
+                set_weights_fn(policy, queue.get())
 
             # Add collected experiences to global
-            if local_rb.get_stored_size() == 1024:
-                samples = local_rb._encode_sample(local_idx)
-                priorities = np.squeeze(samples["priorities"])
-                self.lock.acquire()
-                self.global_rb.add(
-                    obs=samples["obs"], act=samples["act"], rew=samples["rew"],
-                    next_obs=samples["next_obs"], done=samples["done"],
-                    priorities=priorities
+            if local_rb.get_stored_size() == 2000:
+                samples = local_rb.sample(2000)
+
+                # transform to tensor
+                obs_ts = torch.as_tensor(samples['obs'], dtype=torch.float32)
+                act_ts = torch.as_tensor(samples['act'], dtype=torch.float32)
+                next_obs_ts = torch.as_tensor(samples['next_obs'], dtype=torch.float32)
+                rew_ts = torch.as_tensor(samples['rew'], dtype=torch.float32)
+                done_ts = torch.as_tensor(samples['done'], dtype=torch.float32)
+
+                td_errors = policy.agent.compute_td_error(obs_ts, act_ts, next_obs_ts, rew_ts, done_ts).cpu().numpy()
+
+                lock.acquire()
+
+                global_rb.add(
+                    obs=samples['obs'],
+                    act=samples['act'],
+                    next_obs=samples['next_obs'],
+                    rew=samples['rew'],
+                    done=samples['done'],
+                    priorities=td_errors + 1e-6
                 )
-                self.lock.release()
+
+                lock.release()
+
                 local_rb.clear()
-                n_sample_old = n_sample
 
-    def learner(self):
+    @staticmethod
+    def learner(name, global_rb, trained_steps, is_training_done,
+                lock, env_fn, policy_fn, get_ac_fn, n_training, queues, device):
+        print(f"Learner {name}: Starting...")
 
-        policy = self.policy_fn(
-            env=self.env
+        env_fn = cloudpickle.loads(env_fn)
+        policy_fn = cloudpickle.loads(policy_fn)
+        get_ac_fn = cloudpickle.loads(get_ac_fn)
+
+        env = env_fn()
+
+        policy = policy_fn(
+            env=env,
+            device=device
         )
 
-        while not self.is_training_done.is_set() and self.global_rb.get_stored_size() < 1000:
+        policy.agent.name = name
+        policy.agent.logger = None
+
+        while not is_training_done.is_set() and global_rb.get_stored_size() < 10000:
+            # print(global_rb.get_stored_size())
             continue
 
-        while not self.is_training_done.is_set():
-            self.trained_steps.value += 1
-            self.lock.acquire()
+        while not is_training_done.is_set():
+            trained_steps.value += 1
 
-            batch = self.global_rb.sample(self.batch_size)
-            batch = {key: torch.as_tensor(val, dtype=torch.float32).cuda() for key, val in batch.items()}
+            lock.acquire()
 
-            self.lock.release()
+            batch = global_rb.sample(policy.batch_size)
 
-            # td_error
+            lock.release()
+
+            # transform
+            batch = {
+                key: torch.as_tensor(val, dtype=torch.float32).to(device) if key != 'indexes' else val
+                for key, val in batch.items()
+            }
+
+            # normalize reward
+            batch['rew'] = (batch['rew'] - batch['rew'].mean()) / (batch['rew'] + 1e-6)
+
+            # update
+            policy.agent.update(batch, trained_steps.value)
+
+            # td-error
+            td_error = policy.agent.compute_td_error(batch['obs'], batch['act'], batch['next_obs'],
+                                                     batch['rew'], batch['done']).cpu().numpy()
+
+            global_rb.update_priorities(batch['indexes'], np.abs(td_error) + 1e-6)
+
+            ac = get_ac_fn(policy)
+
+            # broadcast to update each explorer
+            if trained_steps.value % policy.update_every == 0:
+                for i in range(len(queues) - 1):
+                    queues[i].put(ac)
+
+            # evaluation
+            if trained_steps.value % 100 == 0:
+                # print(trained_steps.value)
+                queues[-1].put(ac)
+                queues[-1].put(trained_steps.value)
+
+            if trained_steps.value >= n_training:
+                is_training_done.set()
+
+    @staticmethod
+    def evaluator(name, is_training_done, env_fn, policy_fn, set_weights_fn, queue):
+        print(f"Evaluator {name}: Starting...")
+
+        env_fn = cloudpickle.loads(env_fn)
+        policy_fn = cloudpickle.loads(policy_fn)
+        set_weights_fn = cloudpickle.loads(set_weights_fn)
+
+        env = env_fn()
+
+        policy = policy_fn(
+            env=env,
+            device='cpu'
+        )
+
+        policy.agent.name = name
+
+        while not is_training_done.is_set():
+            if queue.empty():
+                continue
+            else:
+                ac = queue.get()
+                trained_steps = queue.get()
+
+                set_weights_fn(policy, ac)
+
+                rews, steps = [], []
+
+                for PosIndex in range(1, 11 + 1):
+                    obs = env.reset(PosIndex=PosIndex, random_position=False)
+                    done = False
+                    episode_reward, episode_steps = 0, 0
+                    while not done:
+                        act = policy.agent.predict(obs)
+                        # print(act)
+                        obs, rew, done, _ = env.step(act)
+                        episode_reward += rew
+                        episode_steps += 1
+                    steps.append(episode_steps)
+                    rews.append(episode_reward)
+
+                print(f'({trained_steps:07d})[EVALUATION] mean_reward: {np.mean(rews)}, mean_steps: {np.mean(steps)}')
+
+    def run(self):
+
+        tasks = []
+
+        # add explorer
+        for i in range(self.n_explorer):
+            tasks.append(
+                Process(
+                    target=self.explorer,
+                    args=(f'Explorer_{i}', self.global_rb, self.queues[i], self.is_training_done, self.lock,
+                          cloudpickle.dumps(self.env_fn), cloudpickle.dumps(self.policy_fn),
+                          cloudpickle.dumps(self.set_weights_fn))
+                )
+            )
+
+        # add learner
+        tasks.append(
+            Process(
+                target=self.learner,
+                args=('Learner', self.global_rb, self.trained_steps, self.is_training_done, self.lock,
+                      cloudpickle.dumps(self.env_fn), cloudpickle.dumps(self.policy_fn),
+                      cloudpickle.dumps(self.get_ac_fn), self.total_steps, self.queues, 'cpu')
+            )
+        )
+
+        # add evaluator
+        tasks.append(
+            Process(
+                target=self.evaluator,
+                args=('Evaluator', self.is_training_done, cloudpickle.dumps(self.env_fn),
+                      cloudpickle.dumps(self.policy_fn), cloudpickle.dumps(self.set_weights_fn), self.queues[-1])
+            )
+        )
+
+        for task in tasks:
+            task.start()
+        for task in tasks:
+            task.join()
 
 
-if __name__ == "__main__":
-
-    # envs = MultiThreadEnv(lambda: SingleControl(), 512, 4)
-    # obs = envs.py_reset()
-    # print(obs.shape)
+def main():
 
     runner = Apex(
         env_fn=lambda: SingleControl(),
-        batch_size=4,
-        thread_pool=4
+        total_steps=1e6,
     )
-    runner.explorer()
+    runner.run()
+
+
+if __name__ == "__main__":
+    # TODO: support CUDA for training
+    # envs = MultiThreadEnv(lambda: SingleControl(), 512, 4)
+    # obs = envs.py_reset()
+    # print(obs.shape)
+    torch.multiprocessing.set_start_method('spawn')
+    main()
