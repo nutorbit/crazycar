@@ -88,7 +88,7 @@ class CrazyCar(ABC):
         self._terminate = False
         self._collisionCounter = 0
 
-    def reset(self, random_position=True, newCarPos=None, PosIndex=1):
+    def reset(self, newCarPos=None, random_position=True, PosIndex=1):
         
         # reset
         self._reset()
@@ -165,7 +165,7 @@ class CrazyCar(ABC):
         # sensors
         sensors = self._racecar.getSensor()
 
-        reward = self._speed * math.cos(diffAngle) + self._speed * (0.5 ** (abs(sensors[0] - sensors[-1]))) - self._speed * math.sin(diffAngle)
+        reward = 0.7 * self._speed * math.cos(diffAngle) + 0.3 * self._speed * (0.5 ** (abs(sensors[0] - sensors[-1]))) - self._speed * math.sin(diffAngle)
 
         # x, y, yaw = self._racecar.getCoordinate()
 
