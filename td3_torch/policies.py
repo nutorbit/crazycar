@@ -34,7 +34,7 @@ class Actor(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
         sizes = [obs_dim] + [256, 256, 256] + [act_dim]
-        self.pi = make_mlp(sizes=sizes, activation=nn.ReLU, output_activation=nn.Tanh).cuda()
+        self.pi = make_mlp(sizes=sizes, activation=nn.ReLU, output_activation=nn.Tanh)
 
     def forward(self, obs):
         return self.pi(obs)
@@ -43,13 +43,13 @@ class Actor(BaseModel):
 class ActorCNN(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
-        self.cnn = ImpalaCNN(obs_dim).cuda()
+        self.cnn = ImpalaCNN(obs_dim)
         self.fc = nn.Sequential(
             nn.Linear(256, 128), nn.ReLU(),
             # nn.Linear(128, 64), nn.ReLU(),
             # nn.Linear(64, 64), nn.ReLU(),
             nn.Linear(128, act_dim), nn.Tanh()
-        ).cuda()
+        )
 
     def forward(self, x):
         x = self.cnn(x/255)
@@ -64,8 +64,8 @@ class Critic(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
         sizes = [obs_dim + act_dim] + [256, 256, 256] + [1]
-        self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU).cuda()
-        self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU).cuda()
+        self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU)
+        self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU)
 
     def forward(self, obs, act):
         concat = torch.cat([obs, act], dim=1)
@@ -79,9 +79,9 @@ class Critic(BaseModel):
 class DuelingQ(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
-        self.body = make_mlp([obs_dim] + [256, 128], nn.ReLU, nn.ReLU).cuda()
-        self.v = make_mlp([128, 1], nn.Identity).cuda()
-        self.a = make_mlp([obs_dim + act_dim, 128, 1], nn.Identity).cuda()
+        self.body = make_mlp([obs_dim] + [256, 128], nn.ReLU, nn.ReLU)
+        self.v = make_mlp([128, 1], nn.Identity)
+        self.a = make_mlp([obs_dim + act_dim, 128, 1], nn.Identity)
 
     def forward(self, obs, act):
 
@@ -99,8 +99,8 @@ class DuelingQ(BaseModel):
 class DuelingCritic(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
-        self.q1 = DuelingQ(obs_dim, act_dim).cuda()
-        self.q2 = DuelingQ(obs_dim, act_dim).cuda()
+        self.q1 = DuelingQ(obs_dim, act_dim)
+        self.q2 = DuelingQ(obs_dim, act_dim)
 
     def forward(self, obs, act):
         return [self.q1(obs, act), self.q2(obs, act)]
@@ -112,20 +112,20 @@ class DuelingCritic(BaseModel):
 class CriticCNN(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
-        self.cnn = ImpalaCNN(obs_dim).cuda()
+        self.cnn = ImpalaCNN(obs_dim)
         # self.cnn_q1 = ImpalaCNN(image_size)
         self.q1 = nn.Sequential(
             nn.Linear(256 + act_dim, 64), nn.ReLU(),
             # nn.Linear(256, 128), nn.ReLU(),
             nn.Linear(64, 1)
-        ).cuda()
+        )
 
         # self.cnn_q2 = ImpalaCNN(image_size)
         self.q2 = nn.Sequential(
             nn.Linear(256 + act_dim, 64), nn.ReLU(),
             # nn.Linear(256, 128), nn.ReLU(),
             nn.Linear(64, 1)
-        ).cuda()
+        )
 
     def forward(self, obs, act):
         # cnn_out_q1 = self.cnn_q1(obs)
@@ -152,14 +152,14 @@ class CriticCNN(BaseModel):
 
 
 class ActorCritic:
-    def __init__(self, obs_dim, act_dim, actor_lr=1e-4, critic_lr=1e-4):
-        self.actor = Actor(obs_dim, act_dim)
-        self.actor_target = Actor(obs_dim, act_dim)
+    def __init__(self, obs_dim, act_dim, actor_lr=1e-4, critic_lr=1e-4, device='cpu'):
+        self.actor = Actor(obs_dim, act_dim).to(device)
+        self.actor_target = Actor(obs_dim, act_dim).to(device)
         self.actor_target.hard_update(self.actor)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
 
-        self.critic = Critic(obs_dim, act_dim)
-        self.critic_target = Critic(obs_dim, act_dim)
+        self.critic = Critic(obs_dim, act_dim).to(device)
+        self.critic_target = Critic(obs_dim, act_dim).to(device)
         self.critic_target.hard_update(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
 
@@ -169,13 +169,15 @@ class ActorCritic:
 
 
 class ActorCriticCNN:
-    def __init__(self, obs_dim, act_dim, actor_lr=1e-4, critic_lr=1e-4):
-        self.actor = ActorCNN(obs_dim, act_dim)
-        self.actor_target = ActorCNN(obs_dim, act_dim)
+    def __init__(self, obs_dim, act_dim, actor_lr=1e-4, critic_lr=1e-4, device='cpu'):
+        self.actor = ActorCNN(obs_dim, act_dim).to(device)
+        self.actor_target = ActorCNN(obs_dim, act_dim).to(device)
+        self.actor_target.hard_update(self.actor)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
 
-        self.critic = CriticCNN(obs_dim, act_dim)
-        self.critic_target = CriticCNN(obs_dim, act_dim)
+        self.critic = CriticCNN(obs_dim, act_dim).to(device)
+        self.critic_target = CriticCNN(obs_dim, act_dim).to(device)
+        self.critic_target.hard_update(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
 
     def act(self, obs):
@@ -282,21 +284,7 @@ class FixupResidual(nn.Module):
 
 
 if __name__ == "__main__":
-    # a = ActorCritic(3, 1)
-    # obs = torch.as_tensor(np.array([1, 2, 3]).reshape((1, 3)), dtype=torch.float32)
-    # act = torch.as_tensor(np.array([0.1]).reshape((1, 1)), dtype=torch.float32)
-    # print(a.c(obs, act))
-    from pysim.environment import CrazyCar, SingleControl
-
-    env = SingleControl()
-
-    obs = env.reset()
-    print(obs.shape)
-
-    ac = ActorCriticCNN(28, 1)
-
-    obs = torch.as_tensor(obs, dtype=torch.float64).unsqueeze(0)
-
-    print(obs.shape)
-    # print(obs.unsqueeze(0).shape)
-    print(ac.act(obs.cuda()))
+    a = ActorCritic(3, 1, device='cpu')
+    obs = torch.zeros((1, 3), dtype=torch.float32).to('cpu')
+    act = torch.ones((1, 1), dtype=torch.float32).to('cpu')
+    print(a.actor(obs))
