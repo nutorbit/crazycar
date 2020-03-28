@@ -24,6 +24,7 @@ class Agent:
                  name='Anonymous',
                  actor_lr=1e-4,
                  critic_lr=1e-4,
+                 device='cpu'
                  ):
 
         self.name = name
@@ -35,10 +36,11 @@ class Agent:
         self.target_noise = target_noise
         self.noise_clip = noise_clip
         self.policy_delay = policy_delay
+        self.device = device
 
         self.logger = logger
 
-        self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
+        self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
         # self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
 
         rb_kwargs = get_default_rb_dict(observation_space.shape, action_space.shape, replay_size)
@@ -153,7 +155,7 @@ class Agent:
         return low + (0.5 * (scaled_action + 1.0) * (high - low))
 
     def to_tensor(self, obs, dtype=torch.float32):
-        obs = torch.as_tensor(obs, dtype=dtype)
+        obs = torch.as_tensor(obs, dtype=dtype).to(self.device)
         return obs
 
     def get_action_noise(self, obs):
@@ -183,7 +185,7 @@ class Agent:
         self.ac.actor.eval()
 
         obs = np.expand_dims(obs, axis=0)
-        obs = self.to_tensor(obs).cuda()
+        obs = self.to_tensor(obs)
         act = self.ac.act(obs).cpu().data.numpy()
 
         self.ac.actor.train()
@@ -207,7 +209,8 @@ class TD3:
                  critic_lr=1e-4,
                  replay_size=100000,
                  batch_size=200,
-                 seed=100):
+                 seed=100,
+                 device='cuda'):
 
         # Hyperparameter
         self.env = env
@@ -226,6 +229,7 @@ class TD3:
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.seed = seed
+        self.device = device
 
         self.logger = Logger()
 
@@ -264,7 +268,8 @@ class TD3:
             noise_clip=noise_clip,
             policy_delay=policy_delay,
             actor_lr=actor_lr,
-            critic_lr=critic_lr
+            critic_lr=critic_lr,
+            device=device
         )
 
     def eval(self):
@@ -326,7 +331,7 @@ class TD3:
                 for j in range(self.update_every):
                     batch = self.agent.replay_buffer.sample(self.batch_size)
                     batch = {
-                        key: torch.as_tensor(val, dtype=torch.float32).cuda() if key != 'indexes' else val
+                        key: torch.as_tensor(val, dtype=torch.float32).to(self.device) if key != 'indexes' else val
                         for key, val in batch.items()
                     }
                     # normalize reward
@@ -337,7 +342,7 @@ class TD3:
 
                     # Calculate td error for PER
                     td_error = self.agent.compute_td_error(batch['obs'], batch['act'], batch['next_obs'],
-                                                           batch['rew'], batch['done']).cpu().data.numpy()
+                                                           batch['rew'], batch['done']).cpu().numpy()
 
                     # update priorities
                     self.agent.replay_buffer.update_priorities(batch['indexes'], np.abs(td_error) + 1e-6)
