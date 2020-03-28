@@ -14,7 +14,8 @@ from cpprb import ReplayBuffer
 
 
 class Agent:
-    def __init__(self, observation_space, action_space, logger,
+    def __init__(self, observation_space, action_space,
+                 logger=None,
                  polyak=0.995,
                  gamma=0.9,
                  target_noise=0.2,
@@ -116,7 +117,8 @@ class Agent:
         loss_critic.backward()
         self.ac.critic_optimizer.step()
 
-        self.logger.store(f'Loss/loss_critic/{self.name}', loss_critic.mean())
+        if self.logger is not None:
+            self.logger.store(f'Loss/loss_critic/{self.name}', loss_critic.mean())
 
     def update_actor(self, batch):
         self.ac.actor_optimizer.zero_grad()
@@ -124,7 +126,8 @@ class Agent:
         loss_actor.backward()
         self.ac.actor_optimizer.step()
 
-        self.logger.store(f'Loss/loss_actor/{self.name}', loss_actor.mean())
+        if self.logger is not None:
+            self.logger.store(f'Loss/loss_actor/{self.name}', loss_actor.mean())
 
     def update(self, batch, timer):
 
