@@ -46,17 +46,12 @@ class ActorCNN(BaseModel):
         self.cnn = ImpalaCNN(obs_dim)
         self.fc = nn.Sequential(
             nn.Linear(256, 128), nn.ReLU(),
-            # nn.Linear(128, 64), nn.ReLU(),
-            # nn.Linear(64, 64), nn.ReLU(),
             nn.Linear(128, act_dim), nn.Tanh()
         )
 
     def forward(self, x):
         x = self.cnn(x/255)
-        # print(x)
         x = self.fc(x)
-        # print(self.fc.parameters())
-        # print(x)
         return x
 
 
@@ -76,66 +71,21 @@ class Critic(BaseModel):
         return self.q1(concat)
 
 
-class DuelingQ(BaseModel):
-    def __init__(self, obs_dim, act_dim):
-        super().__init__(obs_dim, act_dim)
-        self.body = make_mlp([obs_dim] + [256, 128], nn.ReLU, nn.ReLU)
-        self.v = make_mlp([128, 1], nn.Identity)
-        self.a = make_mlp([obs_dim + act_dim, 128, 1], nn.Identity)
-
-    def forward(self, obs, act):
-
-        feature = self.body(obs)
-
-        concat = torch.cat([obs, act], dim=1)
-        v = self.v(feature)
-        a = self.a(concat)
-
-        out = v + a
-
-        return out
-
-
-class DuelingCritic(BaseModel):
-    def __init__(self, obs_dim, act_dim):
-        super().__init__(obs_dim, act_dim)
-        self.q1 = DuelingQ(obs_dim, act_dim)
-        self.q2 = DuelingQ(obs_dim, act_dim)
-
-    def forward(self, obs, act):
-        return [self.q1(obs, act), self.q2(obs, act)]
-
-    def q1_forward(self, obs, act):
-        return self.q1(obs, act)
-
-
 class CriticCNN(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
         self.cnn = ImpalaCNN(obs_dim)
-        # self.cnn_q1 = ImpalaCNN(image_size)
         self.q1 = nn.Sequential(
             nn.Linear(256 + act_dim, 64), nn.ReLU(),
-            # nn.Linear(256, 128), nn.ReLU(),
             nn.Linear(64, 1)
         )
 
-        # self.cnn_q2 = ImpalaCNN(image_size)
         self.q2 = nn.Sequential(
             nn.Linear(256 + act_dim, 64), nn.ReLU(),
-            # nn.Linear(256, 128), nn.ReLU(),
             nn.Linear(64, 1)
         )
 
     def forward(self, obs, act):
-        # cnn_out_q1 = self.cnn_q1(obs)
-        # cnn_out_q2 = self.cnn_q2(obs)
-
-        # concat_1 = torch.cat([cnn_out_q1, act], dim=1)
-        # concat_2 = torch.cat([cnn_out_q2, act], dim=1)
-
-        # concat = torch.cat([obs, act], dim=1)
-        # return [self.q1(concat_1), self.q2(concat_2)]
 
         cnn_out = self.cnn(obs/255)
 
@@ -186,6 +136,10 @@ class ActorCriticCNN:
 
 
 class ImpalaCNN(nn.Module):
+    """
+    The CNN architecture used in the IMPALA paper.
+    Ref: https://arxiv.org/abs/1802.01561
+    """
     def __init__(self, image_size, depth_in=4):
         super().__init__()
         layers = []
@@ -202,17 +156,18 @@ class ImpalaCNN(nn.Module):
 
     def forward(self, x):
         x = x.permute(0, 3, 1, 2).contiguous()
-        # print(x.shape)
         x = self.conv_layers(x)
         x = F.relu(x)
         x = x.view(x.shape[0], -1)
         x = self.linear(x)
         x = F.relu(x)
-        # print(x)
         return x
 
 
 class ImpalaResidual(nn.Module):
+    """
+    A residual block for an IMPALA CNN.
+    """
     def __init__(self, depth):
         super().__init__()
         self.conv1 = nn.Conv2d(depth, depth, 3, padding=1)
@@ -227,6 +182,10 @@ class ImpalaResidual(nn.Module):
 
 
 class FixupCNN(nn.Module):
+    """
+    A larger version of the IMPALA CNN with Fixup init.
+    Ref: https://arxiv.org/abs/1901.09321.
+    """
     def __init__(self, image_size, depth_in=4):
         super().__init__()
         layers = []
@@ -256,6 +215,9 @@ class FixupCNN(nn.Module):
 
 
 class FixupResidual(nn.Module):
+    """
+    A residual block for an Fixup CNN.
+    """
     def __init__(self, depth, num_residual):
         super().__init__()
         self.conv1 = nn.Conv2d(depth, depth, 3, padding=1, bias=False)
