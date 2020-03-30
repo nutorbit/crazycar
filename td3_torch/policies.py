@@ -16,18 +16,17 @@ class BaseModel(nn.Module):
         self.obs_dim = obs_dim
         self.act_dim = act_dim
 
-    def soft_update(self, other_network, polyak):
+    def soft_update(self, other_network, tau):
 
         other_variables = other_network.parameters()
         current_variables = self.parameters()
 
         with torch.no_grad():
             for (current_var, other_var) in zip(current_variables, other_variables):
-                current_var.data.mul_(polyak)
-                current_var.data.add_((1 - polyak) * other_var.data)
+                current_var.data.copy_(tau * other_var.data + (1.0 - tau) * current_var.data)
 
     def hard_update(self, other_network):
-        self.soft_update(other_network, polyak=1.)
+        self.soft_update(other_network, tau=1.)
 
 
 class Actor(BaseModel):

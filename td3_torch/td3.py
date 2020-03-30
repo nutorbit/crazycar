@@ -16,7 +16,7 @@ from cpprb import ReplayBuffer
 class Agent:
     def __init__(self, observation_space, action_space,
                  logger=None,
-                 polyak=0.995,
+                 tau=0.005,
                  gamma=0.9,
                  target_noise=0.2,
                  replay_size=100000,
@@ -32,7 +32,7 @@ class Agent:
         self.observation_space = observation_space
         self.action_space = action_space
 
-        self.polyak = polyak
+        self.tau = tau
         self.gamma = gamma
         self.target_noise = target_noise
         self.noise_clip = noise_clip
@@ -108,8 +108,8 @@ class Agent:
         return torch.abs(td_error1) + torch.abs(td_error2)
 
     def update_targets(self):
-        self.ac.actor_target.soft_update(self.ac.actor, self.polyak)
-        self.ac.critic_target.soft_update(self.ac.critic, self.polyak)
+        self.ac.actor_target.soft_update(self.ac.actor, self.tau)
+        self.ac.critic_target.soft_update(self.ac.critic, self.tau)
 
     def update_critic(self, batch):
         self.ac.critic_optimizer.zero_grad()
@@ -210,7 +210,7 @@ class TD3:
                  act_noise=0.3,
                  target_noise=0.3,
                  noise_clip=0.5,
-                 polyak=0.995,
+                 tau=0.005,
                  gamma=0.9,
                  actor_lr=1e-4,
                  critic_lr=1e-4,
@@ -227,7 +227,7 @@ class TD3:
         self.update_every = update_every
         self.act_noise = act_noise
         self.policy_delay = policy_delay
-        self.polyak = polyak
+        self.tau = tau
         self.gamma = gamma
         self.noise_clip = noise_clip
         self.target_noise = target_noise
@@ -249,7 +249,7 @@ class TD3:
             update_every=update_every,
             act_noise=act_noise,
             policy_delay=policy_delay,
-            polyak=polyak,
+            tau=tau,
             gamma=gamma,
             noise_clip=noise_clip,
             target_noise=target_noise,
@@ -268,7 +268,7 @@ class TD3:
             observation_space=self.env.observation_space,
             action_space=self.env.action_space,
             logger=self.logger,
-            polyak=polyak,
+            tau=tau,
             gamma=gamma,
             target_noise=target_noise,
             replay_size=replay_size,
