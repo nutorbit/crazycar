@@ -1,6 +1,7 @@
 import threading
 import torch
 import cloudpickle
+import notify
 
 import numpy as np
 
@@ -69,10 +70,10 @@ class Apex:
     def set_weights_fn(policy, ac):
         actor, actor_target, critic, critic_target = ac
 
-        policy.agent.ac.actor.soft_update(actor, 0)
-        policy.agent.ac.actor_target.soft_update(actor_target, 0)
-        policy.agent.ac.critic.soft_update(critic, 0)
-        policy.agent.ac.critic_target.soft_update(critic_target, 0)
+        policy.agent.ac.actor.hard_update(actor)
+        policy.agent.ac.actor_target.hard_update(actor_target)
+        policy.agent.ac.critic.hard_update(critic)
+        policy.agent.ac.critic_target.hard_update(critic_target)
 
     @staticmethod
     def explorer(name, global_rb, queue, is_training_done,
@@ -105,7 +106,10 @@ class Apex:
         while not is_training_done.is_set():
             n_sample += 1
 
-            act = policy.agent.get_action_noise(obs)
+            if n_sample < policy.start_steps:
+                act = policy.agent.get_random_action_noise()
+            else:
+                act = policy.agent.get_action_noise(obs)
 
             next_obs, rew, done, _ = env.step(act)
 
@@ -217,7 +221,7 @@ class Apex:
                 is_training_done.set()
 
     @staticmethod
-    def evaluator(name, is_training_done, env_fn, policy_fn, set_weights_fn, queue):
+    def evaluator(name, is_training_done, env_fn, policy_fn, set_weights_fn, n_training, queue):
         print(f"Evaluator {name}: Starting...")
 
         env_fn = cloudpickle.loads(env_fn)
@@ -232,6 +236,9 @@ class Apex:
         )
 
         policy.agent.name = name
+        policy.logger.start()
+
+        best_mean_steps, best_mean_rews = float('-inf'), float('-inf')
 
         while not is_training_done.is_set():
             if queue.empty():
@@ -257,7 +264,24 @@ class Apex:
                     steps.append(episode_steps)
                     rews.append(episode_reward)
 
-                print(f'({trained_steps:07d})[EVALUATION] mean_reward: {np.mean(rews)}, mean_steps: {np.mean(steps)}')
+                mean_rews = np.mean(rews)
+                mean_steps = np.mean(steps)
+
+                policy.logger.store("Reward/Evaluator", mean_rews)
+                policy.logger.store("Steps/Evaluator", mean_steps)
+
+                print(f'({trained_steps:07d})[EVALUATION] mean_reward: {mean_rews}, mean_steps: {mean_steps}')
+
+                if best_mean_steps < mean_steps:
+                    best_mean_steps = mean_steps
+
+                    # save model
+                    policy.logger.save_model(policy.agent.ac)
+
+                    # line message
+                    notify.alert(f"{env.__class__.__name__} (Ape-X)\nReward: {mean_rews:.3f}\nSteps: {mean_steps:.3f}\nTimestep: {trained_steps}/{n_training}")
+
+                policy.logger.update_steps()
 
     def run(self):
 
@@ -289,7 +313,7 @@ class Apex:
             Process(
                 target=self.evaluator,
                 args=('Evaluator', self.is_training_done, cloudpickle.dumps(self.env_fn),
-                      cloudpickle.dumps(self.policy_fn), cloudpickle.dumps(self.set_weights_fn), self.queues[-1])
+                      cloudpickle.dumps(self.policy_fn), cloudpickle.dumps(self.set_weights_fn), self.total_steps, self.queues[-1])
             )
         )
 
@@ -300,10 +324,9 @@ class Apex:
 
 
 def main():
-
     runner = Apex(
         env_fn=lambda: SingleControl(),
-        total_steps=1e6,
+        total_steps=int(1e6),
     )
     runner.run()
 
