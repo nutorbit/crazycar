@@ -161,6 +161,15 @@ class Agent:
         obs = torch.as_tensor(obs, dtype=dtype).to(self.device)
         return obs
 
+    def get_random_action_noise(self):
+        unscaled_act = np.array([self.action_space.sample()])
+        scaled_act = self.scale_action(unscaled_act)
+
+        noise = np.random.normal(0, self.target_noise)
+        scaled_act = np.clip(scaled_act + noise, -1, 1)
+
+        return self.unscale_action(scaled_act)
+
     def get_action_noise(self, obs):
         self.ac.actor.eval()
 
