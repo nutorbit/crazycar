@@ -214,17 +214,17 @@ class TD3:
                  steps_per_epoch=4000,
                  start_steps=10000,
                  update_after=1000,
-                 update_every=50,
+                 update_every=20,
                  policy_delay=2,
-                 act_noise=0.3,
-                 target_noise=0.3,
+                 act_noise=0.1,
+                 target_noise=0.02,
                  noise_clip=0.5,
                  tau=0.005,
                  gamma=0.9,
-                 actor_lr=1e-4,
-                 critic_lr=1e-4,
+                 actor_lr=1e-3,
+                 critic_lr=1e-3,
                  replay_size=100000,
-                 batch_size=200,
+                 batch_size=100,
                  seed=100,
                  device='cuda'):
 
@@ -290,7 +290,7 @@ class TD3:
 
     def eval(self):
         rews, steps = [], []
-        for PosIndex in range(1, 11+1):
+        for PosIndex in range(1, 1+1):
             obs = self.env.reset(PosIndex=PosIndex, random_position=False)
             done = False
             episode_reward, episode_steps = 0, 0
@@ -310,7 +310,7 @@ class TD3:
     def learn(self, epochs):
         total_timesteps = epochs * self.steps_per_epoch
 
-        obs = self.env.reset()
+        obs = self.env.reset(random_position=False)
         episode_rew, episode_len, best_rew = 0, 0, float('-inf')
         self.logger.start()
 
@@ -336,7 +336,7 @@ class TD3:
             obs = next_obs
 
             if done:
-                obs = self.env.reset()
+                obs = self.env.reset(random_position=False)
 
                 self.logger.store('Reward/train', episode_rew)
                 self.logger.store('Steps/train', episode_len)
@@ -351,7 +351,7 @@ class TD3:
                         for key, val in batch.items()
                     }
                     # normalize reward
-                    batch['rew'] = (batch['rew'] - batch['rew'].mean())/(batch['rew'] + 1e-6)
+                    # batch['rew'] = (batch['rew'] - batch['rew'].mean())/(batch['rew'] + 1e-6)
 
                     # update
                     self.agent.update(batch, j)

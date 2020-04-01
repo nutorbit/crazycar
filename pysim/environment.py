@@ -45,7 +45,7 @@ class CrazyCar(ABC):
         else:
             self._p = bullet_client.BulletClient()
 
-        obs = self.reset()
+        obs = self.reset(random_position=False)
         # print(obs.shape)
 
         # define observation space
@@ -165,7 +165,7 @@ class CrazyCar(ABC):
         # sensors
         sensors = self._racecar.getSensor()
 
-        reward = 0.7 * self._speed * math.cos(diffAngle) + 0.3 * self._speed * (0.5 ** (abs(sensors[0] - sensors[-1]))) - self._speed * math.sin(diffAngle)
+        reward = self._speed * math.cos(diffAngle) - self._speed * math.sin(diffAngle)
 
         # x, y, yaw = self._racecar.getCoordinate()
 
@@ -268,6 +268,7 @@ if __name__ == '__main__':
     # env.reset([2.9 - 0.7/2, 0.8, math.pi/2.0])
     # env.reset(random_position=False, PosIndex=6)
     env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
+    env.reset(random_position=False)
     while 1:
         # obs, rew, done, _ = env.step(0)
         # print(rew)

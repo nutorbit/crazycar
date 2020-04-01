@@ -102,6 +102,10 @@ class Racecar:
         angles = list(range(0, 360, 45))
 
         for angle in angles:
+            # skip angle
+            if angle not in self._direction_field:
+                continue
+
             # in range
             if any([func(x, y) for func in self._direction_field[angle]]):
                 return angle

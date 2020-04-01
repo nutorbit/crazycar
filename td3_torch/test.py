@@ -21,7 +21,7 @@ def main(path):
     model.agent.load_ac(ac)
 
     while True:
-        obs = env.reset(random_position=True)
+        obs = env.reset(random_position=False)
         done = False
         rews = []
         while not done:
