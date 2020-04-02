@@ -9,12 +9,14 @@ from sac_torch.model import Actor, Critic
 
 
 class SAC:
+    """
+    Ref: https://arxiv.org/pdf/1812.05905.pdf
+    """
     def __init__(self, obs_dim, action_space,
                  gamma=0.99,
                  tau=0.05,
                  lr=3e-4,
                  alpha=0.2,
-                 batch_size=256,
                  target_update_interval=1,
                  device='cuda'):
 
@@ -23,7 +25,6 @@ class SAC:
         self.alpha = alpha
 
         self.target_update_interval = target_update_interval
-        self.batch_size = batch_size
 
         self.device = device
 
@@ -38,6 +39,10 @@ class SAC:
         # actor
         self.actor = Actor(obs_dim=obs_dim, act_dim=action_space.shape[0], action_space=action_space).to(self.device)
         self.actor_opt = Adam(self.actor.parameters(), lr=lr)
+
+        self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
+        self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
+        self.alpha_opt = Adam([self.log_alpha], lr=lr)
 
     def select_action(self, obs, evaluate=False):
         obs = torch.FloatTensor(obs).to(self.device).unsqueeze(0)
@@ -56,8 +61,8 @@ class SAC:
 
         current_q1, current_q2 = self.critic(obs, act)
 
-        td_error1 = target_q - current_q1
-        td_error2 = target_q - current_q2
+        td_error1 = current_q1 - target_q
+        td_error2 = current_q2 - target_q
 
         return td_error1, td_error2
 
@@ -72,16 +77,19 @@ class SAC:
 
         return loss1, loss2
 
-    def actor_loss(self, obs):
+    def actor_alpha_loss(self, obs):
 
         act, log_prob, _ = self.actor.sample(obs)
 
         current_q1, current_q2 = self.critic(obs, act)
         min_q = torch.min(current_q1, current_q2)
 
-        loss = (min_q - (self.alpha * log_prob)).mean()
+        actor_loss = (min_q - (self.alpha * log_prob)).mean()
 
-        return -loss
+        # alpha loss
+        alpha_loss = (self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
+
+        return -actor_loss, -alpha_loss
 
     def update_critic(self, obs, act, next_obs, rew, done):
         loss1, loss2 = self.critic_loss(obs, act, next_obs, rew, done)
@@ -98,14 +106,20 @@ class SAC:
 
         return loss1, loss2
 
-    def update_actor(self, obs):
-        loss = self.actor_loss(obs)
+    def update_actor_alpha(self, obs):
+        actor_loss, alpha_loss = self.actor_alpha_loss(obs)
 
+        # update actor
         self.actor_opt.zero_grad()
-        loss.backward()
+        actor_loss.backward()
         self.actor_opt.step()
 
-        return loss
+        # update alpha
+        self.alpha_opt.zero_grad()
+        alpha_loss.backward()
+        self.alpha_opt.step()
+
+        return actor_loss, alpha_loss
 
     def update_parameters(self, memory, batch_size, updates):
         batch = memory.sample(batch_size)
@@ -117,15 +131,18 @@ class SAC:
         rew = torch.FloatTensor(batch['rew']).to(self.device)
         done = torch.FloatTensor(batch['done']).to(self.device)
 
-        # update actor & critc
+        # update actor & critic & alpha
         q1_loss, q2_loss = self.update_critic(obs, act, next_obs, rew, done)
-        actor_loss = self.update_actor(obs)
+        actor_loss, alpha_loss = self.update_actor_alpha(obs)
+
+        # apply alpha
+        self.alpha = self.log_alpha.exp()
 
         # update target network
         if updates % self.target_update_interval == 0:
-            self.critic.soft_update(self.critic, self.tau)
+            self.critic_target.soft_update(self.critic, self.tau)
 
-        return q1_loss, q2_loss, actor_loss
+        return q1_loss, q2_loss, actor_loss, alpha_loss, self.alpha.clone()
 
     def load_model(self, actor, critic):
         self.actor = actor
@@ -152,74 +169,101 @@ def eval(env, agent):
     return np.mean(rews), np.mean(steps)
 
 
-def main():
+def run(batch_size=256,
+        replay_size=int(1e6),
+        n_steps=int(1e6),
+        start_steps=10000,
+        gamma=0.99,
+        tau=0.05,
+        lr=3e-4,
+        alpha=0.2,
+        target_update_interval=1,
+        steps_per_epochs=4000
+        ):
 
     from pysim.environment import SingleControl
     from cpprb import ReplayBuffer
     from sac_torch.utils import get_default_rb_dict, Logger
 
     env = SingleControl(renders=False)
-    agent = SAC(env.observation_space.shape[0], env.action_space)
+    agent = SAC(
+        obs_dim=env.observation_space.shape[0],
+        action_space=env.action_space,
+        gamma=gamma,
+        tau=tau,
+        lr=lr,
+        alpha=alpha,
+        target_update_interval=target_update_interval
+    )
 
     # define experience replay
-    rb_kwargs = get_default_rb_dict(env.observation_space.shape, env.action_space.shape, 100000)
+    rb_kwargs = get_default_rb_dict(env.observation_space.shape, env.action_space.shape, replay_size)
     rb = ReplayBuffer(**rb_kwargs)
 
     logger = Logger()
     logger.start()
 
-    total_numsteps = 0
     updates = 0
     best_to_save = float('-inf')
 
-    for i_episode in trange(1000):
-        episode_rew = 0
-        episode_steps = 0
-        done = False
-        obs = env.reset(random_position=False)
+    episode_rew, episode_steps = 0, 0
+    obs = env.reset(random_position=False)
 
-        while not done:
-            if total_numsteps < 10000:
-                act = env.action_space.sample()
-            else:
-                act = agent.select_action(obs)
-            # print(act)
-            if rb.get_stored_size() > 256:
-                q1_loss, q2_loss, actor_loss = agent.update_parameters(rb,  256, updates)
+    for t in trange(n_steps):
 
-                logger.store('Loss/Q1', q1_loss)
-                logger.store('Loss/Q2', q2_loss)
-                logger.store('Loss/Actor', actor_loss)
+        if t < start_steps:
+            act = env.action_space.sample()
+        else:
+            act = agent.select_action(obs)
 
-                updates += 1
+        next_obs, rew, done, _ = env.step(act)
 
-            next_obs, rew, done, _ = env.step(act)
-            episode_steps += 1
-            total_numsteps += 1
-            episode_rew += 1
+        episode_rew += rew
+        episode_steps += 1
 
-            rb.add(obs=obs, act=act, next_obs=next_obs, rew=rew, done=done)
-            # td_error1, td_error2 = agent.compute_td_error(obs, act, next_obs, rew, done)
+        rb.add(obs=obs, act=act, next_obs=next_obs, rew=rew, done=done)
+        # td_error1, td_error2 = agent.compute_td_error(obs, act, next_obs, rew, done)
 
-            obs = next_obs
+        obs = next_obs
 
-            logger.update_steps()
+        # reset when terminated
+        if done:
+            obs = env.reset(random_position=False)
 
-        logger.store('Reward/train', episode_rew)
-        logger.store('Steps/train', episode_steps)
+            logger.store('Reward/train', episode_rew)
+            logger.store('Steps/train', episode_steps)
 
-        # test
-        mean_rew, mean_steps = eval(env, agent)
-        logger.store('Reward/test', mean_rew)
-        logger.store('Steps/test', mean_steps)
+            episode_rew, episode_steps = 0, 0
 
-        # TODO: add save a model
-        if best_to_save < mean_steps:
-            best_to_save = mean_steps
-            logger.save_model([agent.actor, agent.critic])
+        # update nn
+        if rb.get_stored_size() > batch_size:
+            q1_loss, q2_loss, actor_loss, alpha_loss, alpha = agent.update_parameters(rb,  batch_size, updates)
+
+            logger.store('Loss/Q1', q1_loss)
+            logger.store('Loss/Q2', q2_loss)
+            logger.store('Loss/Actor', actor_loss)
+            logger.store('Loss/Alpha', alpha_loss)
+            logger.store('Param/Alpha', alpha)
+
+            updates += 1
+
+        # eval and save
+        if (t+1) % steps_per_epochs == 0:
+
+            # test
+            mean_rew, mean_steps = eval(env, agent)
+            logger.store('Reward/test', mean_rew)
+            logger.store('Steps/test', mean_steps)
+
+            # save a model
+            if best_to_save < mean_steps:
+                best_to_save = mean_steps
+                logger.save_model([agent.actor, agent.critic])
+
+        logger.update_steps()
 
 
 if __name__ == '__main__':
-    main()
+    run()
 
 
