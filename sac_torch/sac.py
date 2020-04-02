@@ -3,6 +3,7 @@ import numpy as np
 import torch.nn.functional as F
 
 from torch.optim import Adam
+from tqdm import trange
 
 from sac_torch.model import Actor, Critic
 
@@ -126,6 +127,10 @@ class SAC:
 
         return q1_loss, q2_loss, actor_loss
 
+    def load_model(self, actor, critic):
+        self.actor = actor
+        self.critic = critic
+
 
 def eval(env, agent):
     rews, steps = [], []
@@ -165,8 +170,9 @@ def main():
 
     total_numsteps = 0
     updates = 0
+    best_to_save = float('-inf')
 
-    for i_episode in range(1000):
+    for i_episode in trange(1000):
         episode_rew = 0
         episode_steps = 0
         done = False
@@ -176,7 +182,7 @@ def main():
             if total_numsteps < 10000:
                 act = env.action_space.sample()
             else:
-                act = agent.select_action()
+                act = agent.select_action(obs)
             # print(act)
             if rb.get_stored_size() > 256:
                 q1_loss, q2_loss, actor_loss = agent.update_parameters(rb,  256, updates)
@@ -192,7 +198,8 @@ def main():
             total_numsteps += 1
             episode_rew += 1
 
-            rb.add(obs=obs, next_obs=next_obs, act=act, rew=rew, done=done)
+            rb.add(obs=obs, act=act, next_obs=next_obs, rew=rew, done=done)
+            # td_error1, td_error2 = agent.compute_td_error(obs, act, next_obs, rew, done)
 
             obs = next_obs
 
@@ -207,6 +214,9 @@ def main():
         logger.store('Steps/test', mean_steps)
 
         # TODO: add save a model
+        if best_to_save < mean_steps:
+            best_to_save = mean_steps
+            logger.save_model([agent.actor, agent.critic])
 
 
 if __name__ == '__main__':
