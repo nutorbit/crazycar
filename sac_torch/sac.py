@@ -84,12 +84,12 @@ class SAC:
         current_q1, current_q2 = self.critic(obs, act)
         min_q = torch.min(current_q1, current_q2)
 
-        actor_loss = (min_q - (self.alpha * log_prob)).mean()
+        actor_loss = ((self.alpha * log_prob) - min_q).mean()
 
         # alpha loss
-        alpha_loss = (self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
+        alpha_loss = -(self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
 
-        return -actor_loss, -alpha_loss
+        return actor_loss, alpha_loss
 
     def update_critic(self, obs, act, next_obs, rew, done):
         loss1, loss2 = self.critic_loss(obs, act, next_obs, rew, done)
