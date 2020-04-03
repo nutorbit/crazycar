@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-import torch.nn.functional as F
 
 from torch.optim import Adam
 from tqdm import trange
@@ -96,12 +95,12 @@ class SAC:
 
         # update q1
         self.critic_opt.zero_grad()
-        loss1.backward()
+        loss1.backward(retain_graph=True)
         self.critic_opt.step()
 
         # update q2
         self.critic_opt.zero_grad()
-        loss2.backward()
+        loss2.backward(retain_graph=True)
         self.critic_opt.step()
 
         return loss1, loss2
@@ -201,6 +200,22 @@ def run(batch_size=256,
     rb = ReplayBuffer(**rb_kwargs)
 
     logger = Logger()
+
+    # save hyperparameter
+    logger.save_hyperparameter(
+        env=env.__class__.__name__,
+        batch_size=256,
+        replay_size=int(1e6),
+        n_steps=int(1e6),
+        start_steps=10000,
+        gamma=0.99,
+        tau=0.05,
+        lr=3e-4,
+        alpha=0.2,
+        target_update_interval=1,
+        steps_per_epochs=4000
+    )
+
     logger.start()
 
     updates = 0
