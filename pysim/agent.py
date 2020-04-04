@@ -4,7 +4,7 @@ import time
 
 import numpy as np
 
-from skimage.color import rgb2gray
+from skimage.color import rgba2rgb, rgb2gray
 
 from pysim.constants import *
 from pysim import track
@@ -204,7 +204,14 @@ class Racecar:
         camUpTarget = [camPos[0]+camUpVec[0], camPos[1]+camUpVec[1], camPos[2]+camUpVec[2]]
         viewMat = self._p.computeViewMatrix(camPos, camTarget, camUpVec)
         projMat = (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0000200271606445, -1.0, 0.0, 0.0, -0.02000020071864128, 0.0)
-        return self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat,projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2]
+
+        # rgba to gray
+        raw = self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat, projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2]
+        raw = np.array(raw).reshape((CAMERA_HEIGHT, CAMERA_WIDTH, 4))
+        img_rgb = rgba2rgb(raw)
+        img_gray = np.expand_dims(rgb2gray(img_rgb), -1)
+
+        return img_gray
 
     def _isCollision(self, part_id):
 
