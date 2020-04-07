@@ -4,7 +4,7 @@ import numpy as np
 from torch.optim import Adam
 from tqdm import trange
 
-from sac_torch.model import Actor, Critic
+from sac_torch.model import Actor, Critic, ActorCNN, CriticCNN
 
 
 class SAC:
@@ -170,7 +170,7 @@ def eval(env, agent):
 
 def run(batch_size=256,
         replay_size=int(1e6),
-        n_steps=int(1e6),
+        n_steps=int(2e5),
         start_steps=10000,
         gamma=0.99,
         tau=0.05,
@@ -180,11 +180,11 @@ def run(batch_size=256,
         steps_per_epochs=4000
         ):
 
-    from pysim.environment import SingleControl
+    from pysim.environment import SingleControl, CrazyCar
     from cpprb import ReplayBuffer
     from sac_torch.utils import get_default_rb_dict, Logger
 
-    env = SingleControl(renders=False)
+    env = CrazyCar(renders=False)
     agent = SAC(
         obs_dim=env.observation_space.shape[0],
         action_space=env.action_space,
@@ -204,16 +204,16 @@ def run(batch_size=256,
     # save hyperparameter
     logger.save_hyperparameter(
         env=env.__class__.__name__,
-        batch_size=256,
-        replay_size=int(1e6),
-        n_steps=int(1e6),
-        start_steps=10000,
-        gamma=0.99,
-        tau=0.05,
-        lr=3e-4,
-        alpha=0.2,
-        target_update_interval=1,
-        steps_per_epochs=4000
+        batch_size=batch_size,
+        replay_size=replay_size,
+        n_steps=n_steps,
+        start_steps=start_steps,
+        gamma=gamma,
+        tau=tau,
+        lr=lr,
+        alpha=alpha,
+        target_update_interval=target_update_interval,
+        steps_per_epochs=steps_per_epochs
     )
 
     logger.start()
@@ -271,8 +271,8 @@ def run(batch_size=256,
             logger.store('Steps/test', mean_steps)
 
             # save a model
-            if best_to_save < mean_steps:
-                best_to_save = mean_steps
+            if best_to_save <= mean_steps:
+                best_to_save = mean_rew
                 logger.save_model([agent.actor, agent.critic])
 
         logger.update_steps()

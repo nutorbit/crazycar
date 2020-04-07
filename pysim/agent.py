@@ -185,7 +185,7 @@ class Racecar:
         if OBSERVATION_TYPE == 'sensor':
             # observation = np.concatenate([self.getSensor(), np.array([self.speed/self.speedMultiplier])]) # norm
             # observation = self.getSensor()/7
-            observation = np.concatenate([self.getSensor()/7, [self.diffAngle()/math.pi], np.array([self.speed/self.speedMultiplier])]) # norm
+            observation = np.concatenate([self.getSensor(), [self.diffAngle()], np.array([self.speed])]) # norm
         if OBSERVATION_TYPE == 'sensor+image':
             observation = np.concatenate([self.getSensor()/7, self.getCameraImage().flatten()/255])
 

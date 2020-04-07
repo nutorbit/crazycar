@@ -10,7 +10,6 @@ import numpy as np
 
 from pybullet_envs.bullet import bullet_client
 from gym import spaces
-from gym.utils import seeding
 from pysim.constants import *
 
 from pysim import track
@@ -271,5 +270,5 @@ if __name__ == '__main__':
     env.reset(random_position=False)
     while 1:
         # obs, rew, done, _ = env.step(0)
-        # print(rew)
+        # print(obs.shape)
         pass

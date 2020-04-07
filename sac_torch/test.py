@@ -9,7 +9,7 @@ from pysim.environment import CrazyCar, SingleControl
 @click.command()
 @click.option('--path', default='./models/Mar_06_2020_122846/td3_284000.pth')
 def main(path):
-    env = SingleControl(renders=True)
+    env = CrazyCar(renders=True)
     model = SAC(env.observation_space.shape[0], env.action_space)
 
     actor, critic = torch.load(path)

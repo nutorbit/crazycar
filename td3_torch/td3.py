@@ -290,7 +290,7 @@ class TD3:
 
     def eval(self):
         rews, steps = [], []
-        for PosIndex in range(1, 1+1):
+        for PosIndex in range(1, 11+1):
             obs = self.env.reset(PosIndex=PosIndex, random_position=False)
             done = False
             episode_reward, episode_steps = 0, 0
@@ -310,11 +310,11 @@ class TD3:
     def learn(self, epochs):
         total_timesteps = epochs * self.steps_per_epoch
 
-        obs = self.env.reset(random_position=False)
+        obs = self.env.reset(random_position=True)
         episode_rew, episode_len, best_rew = 0, 0, float('-inf')
         self.logger.start()
 
-        for t in trange(total_timesteps):
+        for t in trange(int(2e5)):
             if t < self.start_steps:
                 unscaled_act = np.array([self.env.action_space.sample()])
                 scaled_act = self.agent.scale_action(unscaled_act)
@@ -336,7 +336,7 @@ class TD3:
             obs = next_obs
 
             if done:
-                obs = self.env.reset(random_position=False)
+                obs = self.env.reset(random_position=True)
 
                 self.logger.store('Reward/train', episode_rew)
                 self.logger.store('Steps/train', episode_len)
@@ -377,7 +377,7 @@ class TD3:
                     self.logger.save_model(self.agent.ac)
 
                     # line message
-                    notify.alert(f"{self.env.__class__.__name__}\nReward: {mean_rew:.3f}\nSteps:{mean_steps:.3f}\nTimestep: {t+1}/{total_timesteps}")
+                    # notify.alert(f"{self.env.__class__.__name__}\nReward: {mean_rew:.3f}\nSteps:{mean_steps:.3f}\nTimestep: {t+1}/{total_timesteps}")
 
             self.logger.update_steps()
 
