@@ -44,7 +44,7 @@ class CrazyCar(ABC):
         else:
             self._p = bullet_client.BulletClient()
 
-        obs = self.reset(random_position=False)
+        obs = self.reset()
         # print(obs.shape)
 
         # define observation space
@@ -165,7 +165,7 @@ class CrazyCar(ABC):
         sensors = self._racecar.getSensor()
 
         reward = self._speed * math.cos(diffAngle) - self._speed * math.sin(diffAngle)
-
+        # reward = 0
         # x, y, yaw = self._racecar.getCoordinate()
 
         if self._racecar.isCollision():

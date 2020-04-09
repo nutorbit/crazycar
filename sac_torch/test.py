@@ -3,7 +3,7 @@ import torch
 import numpy as np
 
 from sac_torch.sac import SAC
-from pysim.environment import CrazyCar, SingleControl
+from pysim.environment import CrazyCar, SingleControl, MultiCar
 
 
 @click.command()
@@ -24,7 +24,7 @@ def main(path):
             act = model.select_action(obs, evaluate=True)
             # print(act.shape)
             obs, rew, done, _ = env.step(act)
-            # print(obs)
+            # print(np.unique(obs))
             rews.append(rew)
             print("Reward:", rew)
             print("Action", act)

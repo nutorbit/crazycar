@@ -184,7 +184,7 @@ def run(batch_size=256,
     from cpprb import ReplayBuffer
     from sac_torch.utils import get_default_rb_dict, Logger
 
-    env = CrazyCar(renders=False)
+    env = SingleControl(renders=False)
     agent = SAC(
         obs_dim=env.observation_space.shape[0],
         action_space=env.action_space,
@@ -203,6 +203,7 @@ def run(batch_size=256,
 
     # save hyperparameter
     logger.save_hyperparameter(
+        algorithm='SAC',
         env=env.__class__.__name__,
         batch_size=batch_size,
         replay_size=replay_size,
@@ -272,7 +273,7 @@ def run(batch_size=256,
 
             # save a model
             if best_to_save <= mean_steps:
-                best_to_save = mean_rew
+                best_to_save = mean_steps
                 logger.save_model([agent.actor, agent.critic])
 
         logger.update_steps()

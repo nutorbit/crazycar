@@ -251,6 +251,7 @@ class TD3:
 
         # Save hyperparameter
         self.logger.save_hyperparameter(
+            algorithm='TD3',
             env=env.__class__.__name__,
             steps_per_epoch=steps_per_epoch,
             start_steps=start_steps,
@@ -290,7 +291,7 @@ class TD3:
 
     def eval(self):
         rews, steps = [], []
-        for PosIndex in range(1, 11+1):
+        for PosIndex in range(1, 1+1):
             obs = self.env.reset(PosIndex=PosIndex, random_position=False)
             done = False
             episode_reward, episode_steps = 0, 0
@@ -310,7 +311,7 @@ class TD3:
     def learn(self, epochs):
         total_timesteps = epochs * self.steps_per_epoch
 
-        obs = self.env.reset(random_position=True)
+        obs = self.env.reset(random_position=False)
         episode_rew, episode_len, best_rew = 0, 0, float('-inf')
         self.logger.start()
 
@@ -336,7 +337,7 @@ class TD3:
             obs = next_obs
 
             if done:
-                obs = self.env.reset(random_position=True)
+                obs = self.env.reset(random_position=False)
 
                 self.logger.store('Reward/train', episode_rew)
                 self.logger.store('Steps/train', episode_len)

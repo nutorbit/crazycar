@@ -43,7 +43,9 @@ class Racecar:
         carStartOrientation00 = self._p.getQuaternionFromEuler([0,0,0])
 #        carId = self._p.loadURDF("data/racecar/racecar.urdf", [carx, cary, z], carStartOrientation90, globalScaling=scale)
         car = self._p.loadURDF("./pysim/data/racecar/racecar_differential1.urdf", [carx, cary, z], carStartOrientation, globalScaling=scale,useFixedBase=False)
-#        car = self._p.loadURDF(os.path.join(self.urdfRootPath,"racecar/racecar_differential.urdf"), [0,0,.2],useFixedBase=False)
+#         print(car)
+#         print('---')
+# #        car = self._p.loadURDF(os.path.join(self.urdfRootPath,"racecar/racecar_differential.urdf"), [0,0,.2],useFixedBase=False)
         self.racecarUniqueId = car
         #for i in range (self._p.getNumJoints(car)):
         #    print (self._p.getJointInfo(car,i))
@@ -206,12 +208,15 @@ class Racecar:
         projMat = (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0000200271606445, -1.0, 0.0, 0.0, -0.02000020071864128, 0.0)
 
         # rgba to gray
-        raw = self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat, projectionMatrix=projMat, renderer=self._p.ER_BULLET_HARDWARE_OPENGL, shadow=0)[2]
-        raw = np.array(raw).reshape((CAMERA_HEIGHT, CAMERA_WIDTH, 4))
-        img_rgb = rgba2rgb(raw)
-        img_gray = np.expand_dims(rgb2gray(img_rgb), -1)
+        raw = self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat, projectionMatrix=projMat, renderer=self._p.ER_TINY_RENDERER, lightColor=[0, 0, 0], shadow=0)[4]
+        # print(len(raw))
+        # assert 1 != 1
+        raw = np.array(raw).reshape((CAMERA_HEIGHT, CAMERA_WIDTH, 1))
+        raw = np.where(raw > 0, 1, raw)  # segment wall
+        # img_rgb = rgba2rgb(raw)
+        # img_gray = np.expand_dims(rgb2gray(img_rgb), -1)
 
-        return img_gray
+        return raw
 
     def _isCollision(self, part_id):
 
