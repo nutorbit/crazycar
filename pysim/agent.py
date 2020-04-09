@@ -25,6 +25,9 @@ class Racecar:
         self._time = time.time()
         self._sensor = []
         self._planeId = planeId
+        self.rayFrom = []
+        self.rayTo = []
+        self.rayRange = math.pi/3
         self.reset()
 
     def reset(self):
@@ -86,6 +89,12 @@ class Racecar:
         self.steeringMultiplier = 0.5
 
         # self.speedParameter = self._p.addUserDebugParameter('Speed', 0, 2, 1)
+
+        for degree in self._dist_sensors:
+            self._sensor.append(self._p.addUserDebugLine([0, 0, 0], [self.rayRange, -math.radians(degree), 0], self.rayHitColor, parentObjectUniqueId=car, parentLinkIndex=4))
+            self.rayFrom.append([0, 0, 0])
+            self.rayTo.append([self.rayRange, -math.radians(degree), 0])
+
         _ = self.getSensor()
 
     def getCoordinate(self):
@@ -135,32 +144,6 @@ class Racecar:
             return abs(yaw+math.pi/4)
 
     def getSensor(self):
-        x_, y_, yaw = self.getCoordinate()
-
-        def rayWithRadians(x, y, radians, R=[10, 10]):
-
-            # calculate position to rayTest
-            x_new = R[0] * math.cos(radians) + x
-            y_new = R[1] * math.sin(radians) + y
-
-            try:
-                # position ray hit
-                _, _, hit, pos, _ = self._p.rayTest([x, y, 0], [x_new, y_new, 0])[0]
-
-                # distance from car
-                distance = ((pos[0] - x) ** 2 + (pos[1] - y) ** 2) ** 0.5
-
-                # track.createObj(self._p, self._origin, pos[0], pos[1])
-
-                if hit == 1.: # miss
-                    return (x_new, y_new), 7
-                else:
-                    return (pos[0], pos[1]), distance
-            except Exception as e:
-                print('not found object', e)
-
-                return (x_new, x_new), 7
-
         obs = []
 
         now_time = time.time()
@@ -169,12 +152,26 @@ class Racecar:
         if (now_time - self._time) > .3:
             disp = True
 
-        for degree in self._dist_sensors:
-            to, distance = rayWithRadians(x_, y_, yaw + math.radians(-degree))
-            obs.append(distance)
-            # self._p.addUserDebugLine([x_, y_, 0], [to[0], to[1], 0], self.rayHitColor)
-            # track.createObj(self._p, self._origin, hits[0], hits[1])
-            # print(degree, distance, (x_, y_), to)
+        results = self._p.rayTestBatch(self.rayFrom, self.rayTo, 0, parentObjectUniqueId=self.racecarUniqueId, parentLinkIndex=4)
+        for i, obj in enumerate(results):
+            hitObjectUid = obj[0]
+            hitFraction = obj[2]
+            hitPosition = obj[3]
+            # print(hitPosition)
+            if (hitFraction == 1.):
+                self._p.addUserDebugLine(self.rayFrom[i], self.rayTo[i], self.rayMissColor, replaceItemUniqueId=self._sensor[i],
+                                   parentObjectUniqueId=self.racecarUniqueId, parentLinkIndex=4)
+
+                dist = self.rayRange
+            else:
+                localHitTo = [self.rayFrom[i][0] + hitFraction * (self.rayTo[i][0] - self.rayFrom[i][0]),
+                              self.rayFrom[i][1] + hitFraction * (self.rayTo[i][1] - self.rayFrom[i][1]),
+                              self.rayFrom[i][2] + hitFraction * (self.rayTo[i][2] - self.rayFrom[i][2])]
+                self._p.addUserDebugLine(self.rayFrom[i], localHitTo, self.rayHitColor, replaceItemUniqueId=self._sensor[i],
+                                   parentObjectUniqueId=self.racecarUniqueId, parentLinkIndex=4)
+                dist = (localHitTo[0]**2 + localHitTo[1]**2)**0.5
+
+            obs.append(dist)
 
         return np.array(obs)
 
