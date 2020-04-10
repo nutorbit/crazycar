@@ -10,13 +10,12 @@ class CarPosition:
         self._calibration = calibration
 
     def getNewPosition(self, trackpart):
-        carsize = 0.205
         x = self._origin[0]
         y = self._origin[1]
         z = self._origin[2] + 0.03
 
         trackdata = {
-            1: [x + 2.9 - 0.7/2, y  + 0.7, math.pi/2.0],                              # start position
+            1: [2.9 - 0.7/2, 1.1, math.pi/2],                              # start position
             2: [x + 2.9 - 0.7 / 2, y + 6.5 / 2 + 1.0, math.pi/2.0],
             3: [x + 2.9 / 2, y + 6.5 - 0.715 / 2, math.pi  + 0],
             # 4: [x + 0.7/2, y + 6.5 - carsize, -math.pi/2.0],

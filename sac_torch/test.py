@@ -1,5 +1,6 @@
 import click
 import torch
+import math
 import numpy as np
 
 from sac_torch.sac import SAC
@@ -17,15 +18,17 @@ def main(path):
     model.load_model(actor, critic)
 
     while True:
-        obs = env.reset(random_position=False)
+        obs = env.reset(random_position=False, newCarPos=[2.9 - 0.7/2, 1.1, math.pi/2])
         done = False
         rews = []
         while not done:
             act = model.select_action(obs, evaluate=True)
             # print(act.shape)
             obs, rew, done, _ = env.step(act)
+
             # print(np.unique(obs))
             rews.append(rew)
+            # print(list(obs))
             print("Reward:", rew)
             print("Action", act)
         print(np.sum(rews))

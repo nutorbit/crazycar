@@ -1,5 +1,6 @@
 import click
 import torch
+import time
 import numpy as np
 
 from sac_torch.sac import SAC
@@ -27,13 +28,23 @@ def main(path1, path2):
             act1 = model1.select_action(obs[0], evaluate=True)
             act2 = model2.select_action(obs[1], evaluate=True)
             # print(act1.shape, act2.shape)
+            if act1.shape == (1, ):
+                act1 = np.array([1, act1[0]])
+            if act2.shape == (1, ):
+                act2 = np.array([1, act2[0]])
             act = [act1, act2]
-            # print(act.shape)
+
             obs, rew, done, _ = env.step(act)
-            # print(np.unique(obs))
+            # print(done)
+            # print('car1', obs[0][3])
+            # print('car2', obs[1][3])
+            print('car front', np.unique(obs[0]))
+            print('car tail', np.unique(obs[1]))
+            print(rew)
             rews.append(rew)
-            print("Reward:", rew)
-            print("Action", act)
+            # time.sleep(0.1)
+            # print("Reward:", rew)
+            # print("Action", act)
         print(np.sum(rews))
 
 

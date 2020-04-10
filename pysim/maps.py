@@ -15,34 +15,47 @@ class Map:
         self.Orientation090 = p.getQuaternionFromEuler([0, 0, math.pi / 2])
         self.Orientation135 = p.getQuaternionFromEuler([0, 0, -math.pi / 4])
 
-
     def map1(self):
-
         self.p.loadURDF("./pysim/data/elem2900.urdf", [self.x, self.y, self.z], self.Orientation000)
-        self.p.loadURDF("./pysim/data/elem6500.urdf", [self.x + 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 + self.width / 2, self.z], self.Orientation090)
+        self.p.loadURDF("./pysim/data/elem6500.urdf",
+                        [self.x + 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 + self.width / 2, self.z],
+                        self.Orientation090)
         self.p.loadURDF("./pysim/data/elem2900.urdf", [self.x - self.width, self.y + 6.5, self.z], self.Orientation000)
-        self.p.loadURDF("./pysim/data/elem6500.urdf", [self.x - 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 - self.width / 2, self.z], self.Orientation090)
+        self.p.loadURDF("./pysim/data/elem6500.urdf",
+                        [self.x - 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 - self.width / 2, self.z],
+                        self.Orientation090)
         # inside1
-        self.p.loadURDF("./pysim/data/elem0200.urdf", [self.x - 1.4 / 2 - self.width, self.y + 0.7 + 0.8 + self.width / 2, self.z], self.Orientation000)
-        self.p.loadURDF("./pysim/data/elem0800.urdf", [self.x - 1.4 / 2 + self.width / 2, self.y + 0.7 + 0.8 / 2, self.z], self.Orientation090)
-        self.p.loadURDF("./pysim/data/elem1400-1.urdf", [self.x + self.width, self.y + 0.7 + self.width / 2, self.z], self.Orientation000)
-        self.p.loadURDF("./pysim/data/elem5000.urdf", [self.x + self.width - self.width / 2 + 1.4 / 2, self.y + 0.7 + self.width + 5.0 / 2, self.z],
-                   self.Orientation090)
-        self.p.loadURDF("./pysim/data/elem1400-1.urdf", [self.x + self.width - self.width, self.y + 0.7 + self.width / 2 + 5.0, self.z], self.Orientation000)
-        self.p.loadURDF("./pysim/data/elem2000.urdf", [self.x + self.width - self.width / 2 - 0.7, self.y + 0.7 + 5.0 - 2 / 2, self.z],
-                   self.Orientation090)
+        self.p.loadURDF("./pysim/data/elem0200.urdf",
+                        [self.x - 1.4 / 2 - self.width, self.y + 0.7 + 0.8 + self.width / 2, self.z],
+                        self.Orientation000)
+        self.p.loadURDF("./pysim/data/elem0800.urdf",
+                        [self.x - 1.4 / 2 + self.width / 2, self.y + 0.7 + 0.8 / 2, self.z], self.Orientation090)
+        self.p.loadURDF("./pysim/data/elem1400-1.urdf", [self.x + self.width, self.y + 0.7 + self.width / 2, self.z],
+                        self.Orientation000)
+        self.p.loadURDF("./pysim/data/elem5000.urdf",
+                        [self.x + self.width - self.width / 2 + 1.4 / 2, self.y + 0.7 + self.width + 5.0 / 2, self.z],
+                        self.Orientation090)
+        self.p.loadURDF("./pysim/data/elem1400-1.urdf",
+                        [self.x + self.width - self.width, self.y + 0.7 + self.width / 2 + 5.0, self.z],
+                        self.Orientation000)
+        self.p.loadURDF("./pysim/data/elem2000.urdf",
+                        [self.x + self.width - self.width / 2 - 0.7, self.y + 0.7 + 5.0 - 2 / 2, self.z],
+                        self.Orientation090)
         # inside2
         self.p.loadURDF("./pysim/data/elem2600.urdf",
-                   [self.x - 2.9 / 2 + 1.4 + self.width / 2, self.y + 0.7 + self.width + 5.0 - self.width - 0.78 - 2.6 / 2, self.z], self.Orientation090)
+                        [self.x - 2.9 / 2 + 1.4 + self.width / 2,
+                         self.y + 0.7 + self.width + 5.0 - self.width - 0.78 - 2.6 / 2, self.z], self.Orientation090)
         self.p.loadURDF("./pysim/data/elem1400-1.urdf",
-                   [self.x - 2.9 / 2 + 1.4 / 2, self.y + 0.7 + self.width / 2 + 5.0 - 2.6 / 2 - 0.78 - 2.6 / 2, self.z], self.Orientation000)
+                        [self.x - 2.9 / 2 + 1.4 / 2, self.y + 0.7 + self.width / 2 + 5.0 - 2.6 / 2 - 0.78 - 2.6 / 2,
+                         self.z], self.Orientation000)
 
         # corners
-        self.p.loadURDF("./pysim/data/elem0720.urdf", [self.x + self.width + 1.4 / 2 - self.d - self.width / 2, self.y + 0.7 + self.width / 2 + self.d, self.z],
-                   self.Orientation045)
-        self.p.loadURDF("./pysim/data/elem0720.urdf", [self.x + self.width - 1.4 / 2 + self.d - self.width / 2, self.y + 0.7 + self.width / 2 + self.d, self.z],
-                   self.Orientation135)
-
+        self.p.loadURDF("./pysim/data/elem0720.urdf", [self.x + self.width + 1.4 / 2 - self.d - self.width / 2,
+                                                       self.y + 0.7 + self.width / 2 + self.d, self.z],
+                        self.Orientation045)
+        self.p.loadURDF("./pysim/data/elem0720.urdf", [self.x + self.width - 1.4 / 2 + self.d - self.width / 2,
+                                                       self.y + 0.7 + self.width / 2 + self.d, self.z],
+                        self.Orientation135)
 
         x1 = 2.9 / 2 - 1.4 / 2 + 0.05 / 2
         x2 = 2.9 / 2 - 2.9 / 2 + 1.4 + 0.05 / 2
@@ -55,7 +68,6 @@ class Map:
         y4 = -0.05 / 2 + 0.7 + 0.05 + 5.0 - 0.78 - 0.05
         y5 = -0.05 / 2 + 0.7 + 0.05 / 2 + 5
         y6 = -0.05 / 2 + 6.5
-
 
         direction_field = {  # degree
             0: [
@@ -95,19 +107,26 @@ class Map:
 
         return direction_field
 
-
     def map2(self):
-
         self.p.loadURDF("./pysim/data/elem2900.urdf", [self.x, self.y, self.z], self.Orientation000)
-        self.p.loadURDF("./pysim/data/elem6500.urdf", [self.x + 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 + self.width / 2, self.z], self.Orientation090)
+        self.p.loadURDF("./pysim/data/elem6500.urdf",
+                        [self.x + 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 + self.width / 2, self.z],
+                        self.Orientation090)
         self.p.loadURDF("./pysim/data/elem2900.urdf", [self.x - self.width, self.y + 6.5, self.z], self.Orientation000)
-        self.p.loadURDF("./pysim/data/elem6500.urdf", [self.x - 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 - self.width / 2, self.z], self.Orientation090)
+        self.p.loadURDF("./pysim/data/elem6500.urdf",
+                        [self.x - 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 - self.width / 2, self.z],
+                        self.Orientation090)
         #
-        self.p.loadURDF("./pysim/data/elem1400-2.urdf", [self.x + self.width, self.y + 0.7 + self.width / 2 + 0.05, self.z], self.Orientation000)
-        self.p.loadURDF("./pysim/data/elem5000.urdf", [self.x + self.width - self.width / 2 + 0.65, self.y + 0.7 + self.width + 5.0 / 2, self.z], self.Orientation090)
-        self.p.loadURDF("./pysim/data/elem1400-2.urdf", [self.x + self.width, self.y + 0.7 + self.width / 2 + 5.0, self.z], self.Orientation000)
-        self.p.loadURDF("./pysim/data/elem5000.urdf", [self.x + self.width - self.width / 2 - 0.65, self.y + 0.7 + self.width + 5.0 / 2, self.z], self.Orientation090)
-
+        self.p.loadURDF("./pysim/data/elem1400-2.urdf",
+                        [self.x + self.width, self.y + 0.7 + self.width / 2 + 0.05, self.z], self.Orientation000)
+        self.p.loadURDF("./pysim/data/elem5000.urdf",
+                        [self.x + self.width - self.width / 2 + 0.65, self.y + 0.7 + self.width + 5.0 / 2, self.z],
+                        self.Orientation090)
+        self.p.loadURDF("./pysim/data/elem1400-2.urdf",
+                        [self.x + self.width, self.y + 0.7 + self.width / 2 + 5.0, self.z], self.Orientation000)
+        self.p.loadURDF("./pysim/data/elem5000.urdf",
+                        [self.x + self.width - self.width / 2 - 0.65, self.y + 0.7 + self.width + 5.0 / 2, self.z],
+                        self.Orientation090)
 
         x1 = self.x + self.width - self.width / 2 - 0.65
         x2 = self.x + self.width - self.width / 2 + 0.65
@@ -116,7 +135,6 @@ class Map:
         y1 = self.y + 0.7 + self.width / 2 + 0.05
         y2 = self.y + 0.7 + self.width / 2 + 5.0
         y3 = -0.05 / 2 + 6.5
-
 
         direction_field = {  # degree
             0: [

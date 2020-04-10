@@ -11,7 +11,7 @@ CAMERA_WIDTH = 20
 
 RANDOM_POSITION = True
 
-OBSERVATION_TYPE = 'sensor' # (image, sensor, sensor+image)
+OBSERVATION_TYPE = 'image' # (image, sensor, sensor+image)
 
 MAX_SPEED = 1
 MIN_SPEED = -1
