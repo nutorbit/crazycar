@@ -8,6 +8,7 @@ import random
 import pybullet_data
 import numpy as np
 
+from collections import deque
 from pybullet_envs.bullet import bullet_client
 from gym import spaces
 from pysim.constants import *
@@ -256,12 +257,52 @@ class MultiCar(CrazyCar):
         pass
 
 
+class FrameStack:
+    def __init__(self, env, k=4):
+        self.k = k
+        self.env = env
+        self.frames = deque([], maxlen=k)
+
+    @property
+    def action_space(self):
+        return self.env.action_space
+
+    @property
+    def observation_space(self):
+        shape = self.env.observation_space.shape
+        shape = shape[:-1] + (self.k, )
+        observation_high = np.full(shape, 1)
+        observation_low = np.zeros(shape)
+        return spaces.Box(observation_low, observation_high, dtype=np.float32)
+
+    @property
+    def _reward_function(self):
+        return self.env._reward_function
+
+    def reset(self, *args, **kwargs):
+        obs = self.env.reset(*args, **kwargs)
+        for _ in range(self.k):
+            self.frames.append(obs)
+        return self._get_obs()
+
+    def step(self, action):
+        obs, rew, done, info = self.env.step(action)
+        self.frames.append(obs)
+        return self._get_obs(), rew, done, info
+
+    def _get_obs(self):
+        return np.concatenate(list(self.frames), axis=-1)
+
+
 if __name__ == '__main__':
     env = SingleControl(renders=True)
+    env = FrameStack(env)
+    # print(env.observation_space.shape)
     # env.reset([2.9 - 0.7/2, 0.8, math.pi/2.0])
     # env.reset(random_position=False, PosIndex=6)
-    env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
-    env.reset(random_position=False, newCarPos=[2.1, 1, math.pi/2.0])
+    # env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
+    obs = env.reset()
+    print(obs.shape)
     # x - [2.1, 2.9]
     while 1:
         # obs, rew, done, _ = env.step(0)
