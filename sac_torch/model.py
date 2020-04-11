@@ -5,16 +5,7 @@ import torch.nn.functional as F
 
 from torch.distributions import Normal
 
-
-def make_mlp(sizes, activation, output_activation=nn.Identity):
-    layers = []
-    for j in range(len(sizes)-1):
-        if j < len(sizes)-2:
-            # layers += [nn.Linear(sizes[j], sizes[j+1]), nn.BatchNorm1d(sizes[j+1]), activation()]
-            layers += [nn.Linear(sizes[j], sizes[j + 1]), activation()]
-        else:  # output layer
-            layers += [nn.Linear(sizes[j], sizes[j+1]), output_activation()]
-    return nn.Sequential(*layers)
+from sac_torch.utils import make_mlp, weight_init
 
 
 class BaseModel(nn.Module):
@@ -43,6 +34,8 @@ class Critic(BaseModel):
         self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU)
         self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU)
 
+        self.apply(weight_init)
+
     def forward(self, obs, act):
         concat = torch.cat([obs, act], dim=1)
         return self.q1(concat), self.q2(concat)
@@ -62,6 +55,8 @@ class Actor(BaseModel):
         else:
             self.action_scale = torch.FloatTensor((action_space.high - action_space.low) / 2.)
             self.action_bias = torch.FloatTensor((action_space.high + action_space.low) / 2.)
+
+        self.apply(weight_init)
 
     def forward(self, obs):
         x = self.hidden(obs)
@@ -98,6 +93,8 @@ class ActorCNN(Actor):
         sizes = [256, 256, 256]
         self.hidden = make_mlp(sizes, activation=nn.ReLU, output_activation=nn.ReLU)
 
+        self.apply(weight_init)
+
     def forward(self, obs):
         x = self.cnn(obs/255)
         x = self.hidden(x)
@@ -115,6 +112,8 @@ class CriticCNN(Critic):
         self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU)
         self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU)
 
+        self.apply(weight_init)
+
     def forward(self, obs, act):
         x = self.cnn(obs/255).view((obs.shape[0], -1))  # flatten
         concat = torch.cat([x, act], dim=1)
@@ -128,7 +127,7 @@ class ImpalaCNN(nn.Module):
     Ref: https://arxiv.org/abs/1802.01561
     """
 
-    def __init__(self, image_size, depth_in=1):
+    def __init__(self, image_size, depth_in=4):
         super().__init__()
         layers = []
         for depth_out in [16, 32, 32]:
@@ -141,6 +140,8 @@ class ImpalaCNN(nn.Module):
             depth_in = depth_out
         self.conv_layers = nn.Sequential(*layers)
         self.linear = nn.Linear(math.ceil(image_size / 8) ** 2 * depth_in, 256)
+
+        self.apply(weight_init)
 
     def forward(self, x):
         x = x.permute(0, 3, 1, 2).contiguous()
@@ -161,6 +162,8 @@ class ImpalaResidual(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv2d(depth, depth, 3, padding=1)
         self.conv2 = nn.Conv2d(depth, depth, 3, padding=1)
+
+        self.apply(weight_init)
 
     def forward(self, x):
         out = F.relu(x)
