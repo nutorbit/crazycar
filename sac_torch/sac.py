@@ -5,6 +5,7 @@ from torch.optim import Adam
 from tqdm import trange
 
 from sac_torch.model import Actor, Critic, ActorCNN, CriticCNN
+from sac_torch.utils import set_seed_everywhere, huber_loss
 
 
 class SAC:
@@ -69,8 +70,8 @@ class SAC:
         td_error1, td_error2 = self.compute_td_error(obs, act, next_obs, rew, done)
 
         # MSE
-        loss1 = (td_error1 ** 2).mean()
-        loss2 = (td_error2 ** 2).mean()
+        loss1 = huber_loss(td_error1).mean()
+        loss2 = huber_loss(td_error2).mean()
 
         # TODO: use PER instead of Experience replay
 
@@ -177,14 +178,19 @@ def run(batch_size=256,
         lr=3e-4,
         alpha=0.2,
         target_update_interval=2,
-        steps_per_epochs=4000
+        steps_per_epochs=4000,
+        seed=100
         ):
 
-    from pysim.environment import SingleControl, CrazyCar
+    set_seed_everywhere(seed)
+
+    from pysim.environment import SingleControl, CrazyCar, FrameStack
     from cpprb import ReplayBuffer
     from sac_torch.utils import get_default_rb_dict, Logger
 
     env = CrazyCar(renders=False)
+    env = FrameStack(env)
+
     agent = SAC(
         obs_dim=env.observation_space.shape[0],
         action_space=env.action_space,
@@ -217,7 +223,8 @@ def run(batch_size=256,
         lr=lr,
         alpha=alpha,
         target_update_interval=target_update_interval,
-        steps_per_epochs=steps_per_epochs
+        steps_per_epochs=steps_per_epochs,
+        seed=seed
     )
 
     logger.start()
