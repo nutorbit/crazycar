@@ -35,6 +35,7 @@ class Racecar:
         self.speedMultiplier = 51
         self.steeringMultiplier = 0.5
         self.atGoal = False
+        self.nCollision = 0
         self.reset()
 
     def reset(self):
@@ -96,7 +97,7 @@ class Racecar:
             self.rayFrom.append([0, 0, 0])
             self.rayTo.append([self.rayRange, -math.radians(degree), 0])
 
-        _ = self.getSensor()
+        # _ = self.getSensor()
 
     def getCoordinate(self):
         carpos, carorn = self._p.getBasePositionAndOrientation(self.racecarUniqueId)
@@ -128,21 +129,21 @@ class Racecar:
         _, _, yaw = self.getCoordinate()
 
         if angleField == 0:
-            return (yaw - 0)
+            return abs(yaw - 0)
         if angleField == 45:
-            return (yaw - math.pi / 4)
+            return abs(yaw - math.pi / 4)
         if angleField == 90:
-            return (yaw - math.pi / 2)
+            return abs(yaw - math.pi / 2)
         if angleField == 135:
-            return (yaw - math.pi / 2 - math.pi / 4)
+            return abs(yaw - math.pi / 2 - math.pi / 4)
         if angleField == 180:
-            return (abs(yaw) - math.pi)
+            return abs(abs(yaw) - math.pi)
         if angleField == 225:
-            return (yaw + math.pi / 2 + math.pi / 4)
+            return abs(yaw + math.pi / 2 + math.pi / 4)
         if angleField == 270:
-            return (yaw + math.pi / 2)
+            return abs(yaw + math.pi / 2)
         if angleField == 315:
-            return (yaw + math.pi / 4)
+            return abs(yaw + math.pi / 4)
 
     def getSensor(self):
         obs = []
@@ -202,6 +203,13 @@ class Racecar:
         ls = self._p.getLinkState(self.racecarUniqueId, 5, computeForwardKinematics=True)
         camPos = ls[0]
         camOrn = ls[1]
+        camOrn = list(camOrn)
+        # TODO: add back camera
+        # print(camOrn)
+        # camOrn[-1] = -camOrn[-1]
+        # camOrn[-2] = -camOrn[-2]
+        # camOrn[1] = 0.6
+        camOrn = tuple(camOrn)
         camMat = self._p.getMatrixFromQuaternion(camOrn)
         forwardVec = [camMat[0], camMat[3], camMat[6]]
         camUpVec = [camMat[2], camMat[5], camMat[8]]
