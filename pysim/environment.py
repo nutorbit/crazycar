@@ -30,7 +30,7 @@ class CrazyCar(ABC):
         if origin is None:
             origin = [0, 0, 0]
 
-        self._timeStep = 0.005
+        self._timeStep = 0.01
         self._urdfRoot = urdfRoot
         self._actionRepeat = ACTION_REP
         self._observation = []
@@ -129,13 +129,10 @@ class CrazyCar(ABC):
 
         for i in range(self._actionRepeat):
             self._p.stepSimulation()
-            if self._renders:
-                time.sleep(self._timeStep)
-            self._observation = self._racecar.getObservation()
 
-            if self._termination():
-                break
-            self._envStepCounter += 1
+        self._observation = self._racecar.getObservation()
+
+        self._envStepCounter += 1
 
         reward = self._reward()
         done   = self._termination()
@@ -225,9 +222,14 @@ class MultiCar(CrazyCar):
         return np.array([racecar.getObservation() for racecar in self._racecars])
 
     def _termination(self):
-        return self._envStepCounter > MAX_STEPS or self._terminate or (self._racecars[0].atGoal and self._racecars[1].atGoal)
+        return self._envStepCounter > MAX_STEPS or self._terminate or \
+               (self._racecars[0].atGoal and self._racecars[1].atGoal) or \
+               (self._racecars[0].nCollision > 5 and self._racecars[1].nCollision > 5)
 
     def step(self, action):
+
+        rewards = []
+        obses = []
 
         for racecar, realaction in zip(self._racecars, action):
 
@@ -236,25 +238,44 @@ class MultiCar(CrazyCar):
             for i in range(self._actionRepeat):
                 self._p.stepSimulation()
 
-                if self._termination():
-                    break
-                self._envStepCounter += 1
+            obs = racecar.getObservation()
+            reward = self._reward(racecar, realaction, obs)
 
-            reward = self._reward()
-            done   = self._termination()
+            rewards.append(reward)
+            obses.append(obs)
 
-        observation = self.getObservationAll()
+        self._envStepCounter += 1
 
-        return observation, reward, done, {}
+        # observation = self.getObservationAll()
 
-    def _carCollision(self):
-        res = []
+        done = self._termination()
+
+        return np.array(obses), np.array(rewards), done, {}
+
+    def _reward(self, racecar, realaction, obs):
+
+        diffAngle = racecar.diffAngle()
+        opponent = int(4 in np.unique(obs))
+        speed = realaction[0]
+
+        bonus = ((1 - opponent) * speed) + (opponent * speed * 0.1)
+
+        reward = speed * math.cos(diffAngle) - speed * math.sin(diffAngle) + bonus
+
+        if racecar.isCollision():
+            reward -= 50
+            racecar.nCollision += 1
+
+        return reward
+
+    def report(self):
+
+        ncollisions = []
+
         for racecar in self._racecars:
-            res.append(racecar.isCollision())
-        return res
+            ncollisions.append(racecar.nCollision)
 
-    def _reward(self):
-        pass
+        return ncollisions
 
 
 class FrameStack:
@@ -301,7 +322,7 @@ if __name__ == '__main__':
     # env.reset([2.9 - 0.7/2, 0.8, math.pi/2.0])
     # env.reset(random_position=False, PosIndex=6)
     # env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
-    obs = env.reset()
+    obs = env.reset(random_position=False)
     print(obs.shape)
     # x - [2.1, 2.9]
     while 1:

@@ -148,24 +148,28 @@ class SAC:
         self.critic = critic
 
 
-def eval(env, agent):
-    rews, steps = [], []
-    for PosIndex in range(1, 1 + 1):
-        obs = env.reset(PosIndex=PosIndex, random_position=False)
-        done = False
-        episode_reward, episode_steps = 0, 0
-        while not done:
-            act = agent.select_action(obs, evaluate=True)
-            # print(act)
-            obs, rew, done, _ = env.step(act)
-            episode_reward += rew
-            episode_steps += 1
-        steps.append(episode_steps)
-        rews.append(episode_reward)
+def eval(env, agent1, agent2):
+    rews1, rews2, steps = [], [], []
+    obs = env.reset()
+    done = False
+    episode_rew1 = 0
+    episode_rew2 = 0
+    episode_steps = 0
+    while not done:
+        act1 = agent1.select_action(obs[0], evaluate=True)
+        act2 = agent2.select_action(obs[1], evaluate=True)
+        # print(act)
+        obs, rew, done, _ = env.step([act1, act2])
+        episode_rew1 += rew[0]
+        episode_rew2 += rew[1]
+        episode_steps += 1
+    steps.append(episode_steps)
+    rews1.append(episode_rew1)
+    rews2.append(episode_rew2)
 
-    print(f'[EVALUATION] mean_reward: {np.mean(rews)}, mean_steps: {np.mean(steps)}')
+    print(f'\n[EVALUATION] agent1: {np.mean(rews1)}| agent2 {np.mean(rews2)}, mean_steps: {np.mean(steps)}')
 
-    return np.mean(rews), np.mean(steps)
+    return np.mean(rews1), np.mean(rews2), np.mean(steps)
 
 
 def run(batch_size=256,
@@ -180,13 +184,15 @@ def run(batch_size=256,
         steps_per_epochs=4000
         ):
 
-    from pysim.environment import SingleControl, CrazyCar
+    from time import sleep
+    from pysim.environment import SingleControl, CrazyCar, MultiCar
     from cpprb import ReplayBuffer
     from sac_torch.utils import get_default_rb_dict, Logger
 
-    env = CrazyCar(renders=False)
-    agent = SAC(
-        obs_dim=env.observation_space.shape[0],
+    env = MultiCar(renders=False)
+
+    agent1 = SAC(
+        obs_dim=20,
         action_space=env.action_space,
         gamma=gamma,
         tau=tau,
@@ -195,16 +201,32 @@ def run(batch_size=256,
         target_update_interval=target_update_interval
     )
 
-    # define experience replay
-    rb_kwargs = get_default_rb_dict(env.observation_space.shape, env.action_space.shape, replay_size)
-    rb = ReplayBuffer(**rb_kwargs)
+    agent2 = SAC(
+        obs_dim=20,
+        action_space=env.action_space,
+        gamma=gamma,
+        tau=tau,
+        lr=lr,
+        alpha=alpha,
+        target_update_interval=target_update_interval
+    )
 
-    logger = Logger()
+    print(f'Obsevation space: {env.observation_space.shape}')
+    print(f'Action space: {env.action_space.shape}')
+
+    # define experience replay
+    rb_kwargs = get_default_rb_dict((20, 20, 1), env.action_space.shape, replay_size)
+    rb1 = ReplayBuffer(**rb_kwargs)
+    rb2 = ReplayBuffer(**rb_kwargs)
+
+    logger1 = Logger()
+    sleep(2)
+    logger2 = Logger()
 
     # save hyperparameter
-    logger.save_hyperparameter(
+    logger1.save_hyperparameter(
         algorithm='SAC',
-        agent=agent.actor.__class__.__name__,
+        agent=agent1.actor.__class__.__name__,
         shape=env.action_space.shape,
         env=env.__class__.__name__,
         batch_size=batch_size,
@@ -219,49 +241,88 @@ def run(batch_size=256,
         steps_per_epochs=steps_per_epochs
     )
 
-    logger.start()
+    logger2.save_hyperparameter(
+        algorithm='SAC',
+        agent=agent2.actor.__class__.__name__,
+        shape=env.action_space.shape,
+        env=env.__class__.__name__,
+        batch_size=batch_size,
+        replay_size=replay_size,
+        n_steps=n_steps,
+        start_steps=start_steps,
+        gamma=gamma,
+        tau=tau,
+        lr=lr,
+        alpha=alpha,
+        target_update_interval=target_update_interval,
+        steps_per_epochs=steps_per_epochs
+    )
+
+    logger1.start()
+    logger2.start()
 
     updates = 0
     best_to_save = float('-inf')
 
-    episode_rew, episode_steps = 0, 0
-    obs = env.reset(random_position=False)
+    episode_rew1 = 0
+    episode_rew2 = 0
+    episode_steps = 0
+    obs = env.reset()
 
     for t in trange(n_steps):
 
         if t < start_steps:
-            act = env.action_space.sample()
+            act1 = env.action_space.sample()
+            act2 = env.action_space.sample()
         else:
-            act = agent.select_action(obs)
+            act1 = agent1.select_action(obs[0])
+            act2 = agent2.select_action(obs[1])
 
-        next_obs, rew, done, _ = env.step(act)
+        next_obs, rew, done, _ = env.step([act1, act2])
 
-        episode_rew += rew
+        episode_rew1 += rew[0]
+        episode_rew2 += rew[1]
         episode_steps += 1
-
-        rb.add(obs=obs, act=act, next_obs=next_obs, rew=rew, done=done)
+        # print(dict(obs=obs[0].shape, act=act1.shape, next_obs=next_obs[0].shape, rew=rew[0], done=done))
+        rb1.add(obs=obs[0], act=act1, next_obs=next_obs[0], rew=rew[0], done=done)
+        rb2.add(obs=obs[1], act=act2, next_obs=next_obs[1], rew=rew[1], done=done)
         # td_error1, td_error2 = agent.compute_td_error(obs, act, next_obs, rew, done)
 
         obs = next_obs
 
         # reset when terminated
         if done:
-            obs = env.reset(random_position=False)
+            n_collision = env.report()
+            obs = env.reset()
 
-            logger.store('Reward/train', episode_rew)
-            logger.store('Steps/train', episode_steps)
+            logger1.store('Reward/train', episode_rew1)
+            logger1.store('Steps/train', episode_steps)
+            logger1.store('N_Collision/train', n_collision[0])
 
-            episode_rew, episode_steps = 0, 0
+            logger2.store('Reward/train', episode_rew2)
+            logger2.store('Steps/train', episode_steps)
+            logger2.store('N_Collision/train', n_collision[1])
+
+            episode_rew1 = 0
+            episode_rew2 = 0
+            episode_steps = 0
 
         # update nn
-        if rb.get_stored_size() > batch_size:
-            q1_loss, q2_loss, actor_loss, alpha_loss, alpha = agent.update_parameters(rb,  batch_size, updates)
+        if rb1.get_stored_size() > batch_size:
+            q1_loss1, q2_loss1, actor_loss1, alpha_loss1, alpha1 = agent1.update_parameters(rb1, batch_size, updates)
+            q1_loss2, q2_loss2, actor_loss2, alpha_loss2, alpha2 = agent2.update_parameters(rb2, batch_size, updates)
 
-            logger.store('Loss/Q1', q1_loss)
-            logger.store('Loss/Q2', q2_loss)
-            logger.store('Loss/Actor', actor_loss)
-            logger.store('Loss/Alpha', alpha_loss)
-            logger.store('Param/Alpha', alpha)
+            logger1.store('Loss/Q1', q1_loss1)
+            logger1.store('Loss/Q2', q2_loss1)
+            logger1.store('Loss/Actor', actor_loss1)
+            logger1.store('Loss/Alpha', alpha_loss1)
+            logger1.store('Param/Alpha', alpha1)
+
+            logger2.store('Loss/Q1', q1_loss2)
+            logger2.store('Loss/Q2', q2_loss2)
+            logger2.store('Loss/Actor', actor_loss2)
+            logger2.store('Loss/Alpha', alpha_loss2)
+            logger2.store('Param/Alpha', alpha2)
 
             updates += 1
 
@@ -269,16 +330,26 @@ def run(batch_size=256,
         if (t+1) % steps_per_epochs == 0:
 
             # test
-            mean_rew, mean_steps = eval(env, agent)
-            logger.store('Reward/test', mean_rew)
-            logger.store('Steps/test', mean_steps)
+            mean_rew1, mean_rew2, mean_steps = eval(env, agent1, agent2)
+
+            n_collision = env.report()
+
+            logger1.store('Reward/test', mean_rew1)
+            logger1.store('Steps/test', mean_steps)
+            logger1.store('N_Collision/test', n_collision[0])
+
+            logger2.store('Reward/test', mean_rew2)
+            logger2.store('Steps/test', mean_steps)
+            logger2.store('N_Collision/test', n_collision[1])
 
             # save a model
-            if best_to_save <= mean_rew:
-                best_to_save = mean_rew
-                logger.save_model([agent.actor, agent.critic])
+            if best_to_save <= mean_rew1 + mean_rew2:
+                best_to_save = mean_rew1 + mean_rew2
+                logger1.save_model([agent1.actor, agent1.critic])
+                logger2.save_model([agent2.actor, agent2.critic])
 
-        logger.update_steps()
+        logger1.update_steps()
+        logger2.update_steps()
 
 
 if __name__ == '__main__':
