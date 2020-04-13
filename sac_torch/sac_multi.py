@@ -267,6 +267,7 @@ def run(batch_size=256,
     episode_rew1 = 0
     episode_rew2 = 0
     episode_steps = 0
+    win = [0, 0]
     obs = env.reset()
 
     for t in trange(n_steps):
@@ -292,7 +293,13 @@ def run(batch_size=256,
 
         # reset when terminated
         if done:
-            n_collision = env.report()
+            n_collision, win_idx = env.report()
+
+            if win_idx is not None:
+                win[win_idx] += 1
+                logger1.store('Win_prob', win[0] / sum(win))
+                logger2.store('Win_prob', win[1] / sum(win))
+
             obs = env.reset()
 
             logger1.store('Reward/train', episode_rew1)
@@ -332,7 +339,12 @@ def run(batch_size=256,
             # test
             mean_rew1, mean_rew2, mean_steps = eval(env, agent1, agent2)
 
-            n_collision = env.report()
+            n_collision, win_idx = env.report()
+
+            if win_idx is not None:
+                win[win_idx] += 1
+                logger1.store('Win_prob', win[0]/sum(win))
+                logger2.store('Win_prob', win[1]/sum(win))
 
             logger1.store('Reward/test', mean_rew1)
             logger1.store('Steps/test', mean_steps)
@@ -343,8 +355,8 @@ def run(batch_size=256,
             logger2.store('N_Collision/test', n_collision[1])
 
             # save a model
-            if best_to_save <= mean_rew1 + mean_rew2:
-                best_to_save = mean_rew1 + mean_rew2
+            if best_to_save <= max(mean_rew1, mean_rew2):
+                best_to_save = max(mean_rew1, mean_rew2)
                 logger1.save_model([agent1.actor, agent1.critic])
                 logger2.save_model([agent2.actor, agent2.critic])
 
