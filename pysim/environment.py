@@ -60,8 +60,8 @@ class CrazyCar(ABC):
         if self._isDiscrete:
             self.action_space = spaces.Discrete(9)
         else:
-            action_low  = np.array([0.5, -1])
-            action_high = np.array([1,  1])
+            action_low = np.array([0.5, -1])
+            action_high = np.array([1, 1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
 
@@ -89,7 +89,7 @@ class CrazyCar(ABC):
         self._collisionCounter = 0
 
     def reset(self, newCarPos=None, random_position=True, PosIndex=1):
-        
+
         # reset
         self._reset()
 
@@ -103,7 +103,7 @@ class CrazyCar(ABC):
             carPos = newCarPos
 
         self._racecar = agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot,
-                                         timeStep=self._timeStep, direction_field=self._direction_field)
+                                      timeStep=self._timeStep, direction_field=self._direction_field)
 
         # get observation
         self._observation = self._racecar.getObservation()
@@ -135,7 +135,7 @@ class CrazyCar(ABC):
         self._envStepCounter += 1
 
         reward = self._reward()
-        done   = self._termination()
+        done = self._termination()
 
         return np.array(self._observation), reward, done, {}
 
@@ -159,13 +159,12 @@ class CrazyCar(ABC):
         # x, y, yaw = self._racecar.getCoordinate()
 
         if self._racecar.isCollision():
-
             reward = -50
             self._collisionCounter += 1
 
             self._terminate = True
-            
-        if math.pi - math.pi/4 <= diffAngle <= math.pi + math.pi/4:
+
+        if math.pi - math.pi / 4 <= diffAngle <= math.pi + math.pi / 4:
             reward = -50
             # backward
             self._terminate = True
@@ -195,26 +194,33 @@ class SingleControl(CrazyCar):
 
 
 class MultiCar(CrazyCar):
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.atGoal = None
 
     def reset(self):
 
         # reset
         self._reset()
 
-        carPos1 = [2.9 - 0.7/2, 1.5, math.pi/2.0]
-        carPos2 = [2.9 - 0.7/2, 1.2, math.pi/2.0]
+        self.atGoal = None
+
+        carPos1 = [2.9 - 0.7 / 2, 1.5, math.pi / 2.0]
+        carPos2 = [2.9 - 0.7 / 2, 1.2, math.pi / 2.0]
 
         carPoses = [carPos1, carPos2]
+        np.random.shuffle(carPoses)
 
         # 2 agent
-        self._racecars = [ 
-            agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot,\
-                             timeStep=self._timeStep, direction_field=self._direction_field)
-            for carPos in carPoses 
+        self._racecars = [
+            agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot, \
+                          timeStep=self._timeStep, direction_field=self._direction_field)
+            for carPos in carPoses
         ]
+
+        for i in range(2):
+            print(f"Agent {i} at position {carPoses[i][:-1]}")
 
         return self.getObservationAll()
 
@@ -223,15 +229,16 @@ class MultiCar(CrazyCar):
 
     def _termination(self):
         return self._envStepCounter > MAX_STEPS or self._terminate or \
-               (self._racecars[0].atGoal and self._racecars[1].atGoal) or \
-               (self._racecars[0].nCollision > 5 and self._racecars[1].nCollision > 5)
+               (self._racecars[0].atGoal or self._racecars[1].atGoal) or \
+               (self._racecars[0].nCollision > 5 and self._racecars[1].nCollision > 5) or \
+               self._racecars[0].nCollision > 100 or self._racecars[1].nCollision > 100
 
     def step(self, action):
 
         rewards = []
         obses = []
 
-        for racecar, realaction in zip(self._racecars, action):
+        for car_id, (racecar, realaction) in enumerate(zip(self._racecars, action)):
 
             racecar.applyAction(realaction)
 
@@ -240,6 +247,10 @@ class MultiCar(CrazyCar):
 
             obs = racecar.getObservation()
             reward = self._reward(racecar, realaction, obs)
+
+            if racecar.atGoal:
+                reward += 1000
+                self.atGoal = car_id
 
             rewards.append(reward)
             obses.append(obs)
@@ -275,7 +286,7 @@ class MultiCar(CrazyCar):
         for racecar in self._racecars:
             ncollisions.append(racecar.nCollision)
 
-        return ncollisions
+        return ncollisions, self.atGoal
 
 
 class FrameStack:
@@ -291,7 +302,7 @@ class FrameStack:
     @property
     def observation_space(self):
         shape = self.env.observation_space.shape
-        shape = shape[:-1] + (self.k, )
+        shape = shape[:-1] + (self.k,)
         observation_high = np.full(shape, 1)
         observation_low = np.zeros(shape)
         return spaces.Box(observation_low, observation_high, dtype=np.float32)
