@@ -206,21 +206,27 @@ class MultiCar(CrazyCar):
 
         self.atGoal = None
 
+        # difference level
         carPos1 = [2.9 - 0.7 / 2, 1.5, math.pi / 2.0]
         carPos2 = [2.9 - 0.7 / 2, 1.2, math.pi / 2.0]
 
-        carPoses = [carPos1, carPos2]
-        np.random.shuffle(carPoses)
+        # same level
+        carPos3 = [2.3, 1.2, math.pi/2]
+        carPos4 = [2.7, 1.2, math.pi / 2]
+
+        pos = [[carPos1, carPos2], [carPos2, carPos1], [carPos3, carPos4], [carPos4, carPos3]]
+
+        np.random.shuffle(pos)
 
         # 2 agent
         self._racecars = [
             agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot, \
                           timeStep=self._timeStep, direction_field=self._direction_field)
-            for carPos in carPoses
+            for carPos in pos[0]
         ]
 
         for i in range(2):
-            print(f"Agent {i} at position {carPoses[i][:-1]}")
+            print(f"Agent {i} at position {pos[0][i][:-1]}")
 
         return self.getObservationAll()
 
@@ -230,8 +236,7 @@ class MultiCar(CrazyCar):
     def _termination(self):
         return self._envStepCounter > MAX_STEPS or self._terminate or \
                (self._racecars[0].atGoal or self._racecars[1].atGoal) or \
-               (self._racecars[0].nCollision > 5 and self._racecars[1].nCollision > 5) or \
-               self._racecars[0].nCollision > 100 or self._racecars[1].nCollision > 100
+               self._racecars[0].nCollision > 100 and self._racecars[1].nCollision > 100
 
     def step(self, action):
 
@@ -330,10 +335,10 @@ if __name__ == '__main__':
     env = SingleControl(renders=True)
     env = FrameStack(env)
     # print(env.observation_space.shape)
-    # env.reset([2.9 - 0.7/2, 0.8, math.pi/2.0])
     # env.reset(random_position=False, PosIndex=6)
     # env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
-    obs = env.reset(random_position=False)
+    # obs = env.reset(random_position=False)
+    obs = env.reset([2.7, 1.2, math.pi / 2.0])
     print(obs.shape)
     # x - [2.1, 2.9]
     while 1:
