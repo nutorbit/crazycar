@@ -32,7 +32,7 @@ class Racecar:
         self.steeringLinks = [0, 2]
         self.maxForce = 1000
         self.motorizedwheels = [8, 15]
-        self.speedMultiplier = 51
+        self.speedMultiplier = 100
         self.steeringMultiplier = 0.5
         self.atGoal = False
         self.nCollision = 0
@@ -221,9 +221,10 @@ class Racecar:
 
         # rgba to gray
         raw = self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat, projectionMatrix=projMat,
-                                     renderer=self._p.ER_TINY_RENDERER, lightColor=[0, 0, 0], shadow=0)[4]
+                                     renderer=self._p.ER_BULLET_HARDWARE_OPENGL, lightColor=[0, 0, 0], shadow=0)[4]
         raw = np.array(raw).reshape((CAMERA_HEIGHT, CAMERA_WIDTH, 1))
         raw = np.where(np.logical_and(0 < raw, raw < 9), 1, np.where(raw >= 9, 4, raw))  # segment wall and another car
+        # raw = np.where(raw > 0, 1, raw)
         # img_rgb = rgba2rgb(raw)
         # img_gray = np.expand_dims(rgb2gray(img_rgb), -1)
 
