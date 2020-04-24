@@ -11,12 +11,12 @@ $ pip install -r requirements.txt
 **training a model.**
 
 ```shell
-$ python -m td3_torch.td3
+$ python -m sac_torch.sac
 ```
 
 **testing a model.**
 
 ```shell
-$ python -m td3_torch.test --path
+$ python -m sac_torch.test --path
 ```
 
