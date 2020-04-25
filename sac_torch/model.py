@@ -127,7 +127,7 @@ class ImpalaCNN(nn.Module):
     Ref: https://arxiv.org/abs/1802.01561
     """
 
-    def __init__(self, image_size, depth_in=4):
+    def __init__(self, image_size, depth_in=1):
         super().__init__()
         layers = []
         for depth_out in [16, 32, 32]:

@@ -4,13 +4,14 @@ import math
 import numpy as np
 
 from sac_torch.sac import SAC
-from pysim.environment import CrazyCar, SingleControl, MultiCar
+from pysim.environment import CrazyCar, SingleControl, MultiCar, FrameStack
 
 
 @click.command()
 @click.option('--path', default='./models/Mar_06_2020_122846/td3_284000.pth')
 def main(path):
     env = CrazyCar(renders=True)
+    # env = FrameStack(env)
     model = SAC(env.observation_space.shape[0], env.action_space)
 
     actor, critic = torch.load(path)

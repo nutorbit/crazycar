@@ -12,6 +12,7 @@ from pysim.environment import CrazyCar, SingleControl, MultiCar
 @click.option('--path2', default='./models/Apr_07_2020_224827/td3_192000.pth')
 def main(path1, path2):
     env = MultiCar(renders=True)
+    env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
     model1 = SAC(env.observation_space.shape[0], env.action_space)
     actor1, critic1 = torch.load(path1)
     model1.load_model(actor1, critic1)

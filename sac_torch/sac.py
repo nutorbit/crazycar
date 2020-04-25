@@ -189,7 +189,7 @@ def run(batch_size=256,
     from sac_torch.utils import get_default_rb_dict, Logger
 
     env = CrazyCar(renders=False)
-    env = FrameStack(env)
+    # env = FrameStack(env)
 
     agent = SAC(
         obs_dim=env.observation_space.shape[0],

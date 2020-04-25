@@ -93,6 +93,7 @@ class Logger:
         self.steps = 0
         self.writer = None
         self.hyperparameter = None
+        print(f'Logger is ready: {self.start_date}')
 
     def start(self):
 
