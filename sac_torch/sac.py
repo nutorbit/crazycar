@@ -1,4 +1,5 @@
 import torch
+import logging
 import numpy as np
 
 from torch.optim import Adam
@@ -20,6 +21,8 @@ class SAC:
                  target_update_interval=1,
                  device='cuda'):
 
+        logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(name)s - %(levelname)s: %(message)s')
+        self.logger = logging.getLogger('SAC')
         self.gamma = gamma
         self.tau = tau
         self.alpha = alpha
@@ -73,7 +76,8 @@ class SAC:
         loss1 = huber_loss(td_error1).mean()
         loss2 = huber_loss(td_error2).mean()
 
-        # TODO: use PER instead of Experience replay
+        self.logger.debug(f'Critic loss1: {loss1}')
+        self.logger.debug(f'Critic loss2: {loss2}')
 
         return loss1, loss2
 
@@ -88,6 +92,9 @@ class SAC:
 
         # alpha loss
         alpha_loss = -(self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
+
+        self.logger.debug(f'Actor loss: {actor_loss}')
+        self.logger.debug(f'Alpha loss: {alpha_loss}')
 
         return actor_loss, alpha_loss
 
@@ -164,8 +171,6 @@ def eval(env, agent):
         steps.append(episode_steps)
         rews.append(episode_reward)
 
-    print(f'[EVALUATION] mean_reward: {np.mean(rews)}, mean_steps: {np.mean(steps)}')
-
     return np.mean(rews), np.mean(steps)
 
 
@@ -211,7 +216,8 @@ def run(batch_size=256,
     logger.save_hyperparameter(
         algorithm='SAC',
         agent=agent.actor.__class__.__name__,
-        shape=env.action_space.shape,
+        observation_shape=env.observation_space.shape,
+        action_shape=env.action_space.shape,
         env=env.__class__.__name__,
         reward=env._reward_function,
         batch_size=batch_size,
