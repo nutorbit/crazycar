@@ -12,7 +12,7 @@ def createObj(bullet_client, origin, x, y, z=0):
     p.loadURDF("./pysim/data/test.urdf", [x, y, z], startOrientation000)
 
 
-def createRaceTrack(bullet_client, origin, track_id=1):
+def createRaceTrack(bullet_client, origin, track_id=2):
 
     m = Map(bullet_client, origin)
 

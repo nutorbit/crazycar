@@ -339,10 +339,13 @@ class TD3:
             obs = next_obs
 
             if done:
+                n_collision = self.env.report()
+
                 obs = self.env.reset(random_position=False)
 
                 self.logger.store('Reward/train', episode_rew)
                 self.logger.store('Steps/train', episode_len)
+                self.logger.store('N_Collision/train', n_collision)
 
                 episode_rew, episode_len = 0, 0
 
@@ -367,12 +370,13 @@ class TD3:
                     self.agent.replay_buffer.update_priorities(batch['indexes'], np.abs(td_error) + 1e-6)
 
             if (t+1) % self.steps_per_epoch == 0:
-                epoch = (t+1)//self.steps_per_epoch
+                n_collision = self.env.report()
 
                 mean_rew, mean_steps = self.eval()
 
                 self.logger.store('Reward/test', mean_rew)
                 self.logger.store('Steps/test', mean_steps)
+                self.logger.store('N_Collision/test', n_collision)
 
                 # save model here
                 if best_rew < mean_steps:

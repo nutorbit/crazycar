@@ -175,6 +175,9 @@ class CrazyCar(ABC):
     def p(self):
         return self._p
 
+    def report(self):
+        return self._racecar.nCollision
+
 
 class SingleControl(CrazyCar):
 

@@ -87,7 +87,7 @@ class Logger:
     def setup_directory(self):
         # Create model directory
         if not os.path.exists(f'./save/{self.start_date}'):
-            os.makedirs(f'./save/{self.start_date}')
+            os.makedirs(f'./save/{self.start_date}/models')
 
     def start(self):
 

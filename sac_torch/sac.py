@@ -260,10 +260,13 @@ def run(batch_size=256,
 
         # reset when terminated
         if done:
+            n_collision = env.report()
+
             obs = env.reset(random_position=False)
 
             logger.store('Reward/train', episode_rew)
             logger.store('Steps/train', episode_steps)
+            logger.store('N_Collision/train', n_collision)
 
             episode_rew, episode_steps = 0, 0
 
@@ -281,11 +284,13 @@ def run(batch_size=256,
 
         # eval and save
         if (t+1) % steps_per_epochs == 0:
+            n_collision = env.report()
 
             # test
             mean_rew, mean_steps = eval(env, agent)
             logger.store('Reward/test', mean_rew)
             logger.store('Steps/test', mean_steps)
+            logger.store('N_Collision/test', n_collision)
 
             # save a model
             if best_to_save <= mean_rew:
