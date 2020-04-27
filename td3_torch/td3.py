@@ -253,6 +253,8 @@ class TD3:
         self.logger.save_hyperparameter(
             algorithm='TD3',
             env=env.__class__.__name__,
+            observation_shape=env.observation_space.shape,
+            action_shape=env.action_space.shape,
             steps_per_epoch=steps_per_epoch,
             start_steps=start_steps,
             update_after=update_after,
