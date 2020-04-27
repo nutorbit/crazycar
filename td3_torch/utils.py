@@ -3,6 +3,7 @@ import random
 import torch
 import torch.nn as nn
 import os
+import logging
 import json
 
 from datetime import datetime
@@ -72,40 +73,42 @@ def get_default_rb_dict(obs_dim, act_dim, size):
 
 class Logger:
 
-    def __init__(self):
-
-        self.time = datetime.now()
-        self.start_date = self.time.strftime("%b_%d_%Y_%H%M%S")
+    def __init__(self, level=None):
+        logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(name)s - %(levelname)s: %(message)s')
+        self.logger = logging.getLogger('Logger')
+        self.start_date = datetime.now().strftime("%b_%d_%Y_%H%M%S")
         self.steps = 0
         self.writer = None
         self.hyperparameter = None
 
+        self.setup_directory()
+        self.logger.info('Logger is ready')
+
+    def setup_directory(self):
+        # Create model directory
+        if not os.path.exists(f'./save/{self.start_date}'):
+            os.makedirs(f'./save/{self.start_date}')
+
     def start(self):
 
-        # Create logs directory
-        if not os.path.exists(f'./logs/{self.start_date}'):
-            os.makedirs(f'./logs/{self.start_date}')
+        self.writer = SummaryWriter(f'./save/{self.start_date}/')
 
-        self.writer = SummaryWriter(f'./logs/{self.start_date}/')
-
-        # Create model directory
-        if not os.path.exists(f'./models/{self.start_date}'):
-            os.makedirs(f'./models/{self.start_date}')
-
-        with open(f'./logs/{self.start_date}/params.json', 'w') as f:
+        with open(f'./save/{self.start_date}/params.json', 'w') as f:
             json.dump(self.hyperparameter, f)
 
     def save_hyperparameter(self, **kwargs):
-
         # Save hyperparameter
         self.hyperparameter = kwargs
+        self.logger.info('Parameter has saved.')
 
     def update_steps(self):
         self.steps += 1
 
     def save_model(self, model):
-        torch.save(model, f'./models/{self.start_date}/td3_{self.steps + 1}.pth')
+        torch.save(model, f'./save/{self.start_date}/models/td3_{self.steps + 1}.pth')
+        self.logger.info('Model has saved.')
 
     def store(self, name, val):
         self.writer.add_scalar(name, val, self.steps)
+        self.logger.debug(f'[{name}] {val}')
 

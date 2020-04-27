@@ -124,5 +124,5 @@ class Logger:
 
     def store(self, name, val):
         self.writer.add_scalar(name, val, self.steps)
-        self.logger.info(f'[{name}] {val}')
+        self.logger.debug(f'[{name}] {val}')
 

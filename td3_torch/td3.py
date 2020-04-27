@@ -41,8 +41,8 @@ class Agent:
 
         self.logger = logger
 
-        self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
-        # self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr)
+        # self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
+        self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
 
         rb_kwargs = get_default_rb_dict(observation_space.shape, action_space.shape, replay_size)
         # self.replay_buffer = ReplayBuffer(**rb_kwargs)
