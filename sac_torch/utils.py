@@ -2,11 +2,9 @@ import numpy as np
 import random
 import torch
 import torch.nn as nn
-import os
+import os, sys
 import logging
 import json
-
-from datetime import datetime
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -85,26 +83,49 @@ def get_default_rb_dict(obs_dim, act_dim, size):
     }
 
 
+def get_helper_logger(name, date):
+    # Create model directory
+    if not os.path.exists(f'./save/{date}/logs'):
+        os.makedirs(f'./save/{date}/logs')
+
+    log = logging.getLogger(name)
+    log.setLevel(level=logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    fh = logging.FileHandler(f'./save/{date}/logs/{name}.log')
+    fh.setLevel(level=logging.INFO)
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(level=logging.WARNING)
+    ch.setFormatter(formatter)
+    log.addHandler(ch)
+
+    return log
+
+
 class Logger:
 
-    def __init__(self, level=None):
-        logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(name)s - %(levelname)s: %(message)s')
-        self.logger = logging.getLogger('Logger')
-        self.start_date = datetime.now().strftime("%b_%d_%Y_%H%M%S")
+    def __init__(self, date):
+        self.start_date = date
+
         self.steps = 0
         self.writer = None
         self.hyperparameter = None
 
         self.setup_directory()
+
+        self.logger = get_helper_logger('Logger', date)
+
         self.logger.info('Logger is ready')
 
     def setup_directory(self):
         # Create model directory
-        if not os.path.exists(f'./save/{self.start_date}'):
-            os.makedirs(f'./save/{self.start_date}')
+        if not os.path.exists(f'./save/{self.start_date}/models'):
+            os.makedirs(f'./save/{self.start_date}/models')
 
     def start(self):
-
         self.writer = SummaryWriter(f'./save/{self.start_date}/')
 
         with open(f'./save/{self.start_date}/params.json', 'w') as f:
