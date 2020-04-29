@@ -17,11 +17,13 @@ from pysim import track
 from pysim import agent
 from pysim import positions
 from pysim.utils import get_reward_function
+from sac_torch.utils import get_helper_logger
 
 
 class CrazyCar(ABC):
 
     def __init__(self,
+                 date=None,
                  urdfRoot=pybullet_data.getDataPath(),
                  renders=False,
                  origin=None,
@@ -43,6 +45,10 @@ class CrazyCar(ABC):
         self._reward_function = get_reward_function()[reward_name]
         self._speed = 0
 
+        self.logger = get_helper_logger(self.__class__.__name__, date)
+        self.logger.info(f'{str(self.__class__.__name__)}-Environment has created')
+        self.logger.info(f'Reward function: {str(self._reward_function)}')
+
         if self._renders:
             self._p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
         else:
@@ -55,6 +61,7 @@ class CrazyCar(ABC):
         observation_high = np.full(observationDim, 1)
         observation_low = np.zeros(observationDim)
         self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
+        self.logger.info(f'Observation shape: {str(self.observation_space.shape)}')
 
         # define action space
         if self._isDiscrete:
@@ -64,9 +71,11 @@ class CrazyCar(ABC):
             action_high = np.array([1, 1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
+        self.logger.info(f'Action shape: {str(self.action_space.shape)}')
+
 
     def _reset(self):
-
+        self.logger.info("Environment has reset")
         self._p.resetSimulation()
         self._p.setTimeStep(self._timeStep)
 
@@ -89,7 +98,6 @@ class CrazyCar(ABC):
         self._collisionCounter = 0
 
     def reset(self, newCarPos=None, random_position=True, PosIndex=1):
-
         # reset
         self._reset()
 
@@ -151,7 +159,7 @@ class CrazyCar(ABC):
         # isCross = angleField in list(range(45, 360, 90))
 
         # sensors
-        sensors = self._racecar.getSensor()
+        # sensors = self._racecar.getSensor()
 
         # calculate reward
         reward = eval(self._reward_function)
@@ -310,7 +318,7 @@ class FrameStack:
     @property
     def observation_space(self):
         shape = self.env.observation_space.shape
-        shape = shape[:-1] + (self.k,)
+        shape = shape[:-1] + (self.k, )
         observation_high = np.full(shape, 1)
         observation_low = np.zeros(shape)
         return spaces.Box(observation_low, observation_high, dtype=np.float32)
@@ -336,7 +344,7 @@ class FrameStack:
 
 if __name__ == '__main__':
     env = SingleControl(renders=True)
-    env = FrameStack(env)
+    # env = FrameStack(env)
     # print(env.observation_space.shape)
     # env.reset(random_position=False, PosIndex=6)
     # env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])

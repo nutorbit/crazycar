@@ -2,18 +2,21 @@ import torch
 import logging
 import numpy as np
 
+from datetime import datetime
 from torch.optim import Adam
 from tqdm import trange
+from cpprb import ReplayBuffer
 
 from sac_torch.model import Actor, Critic, ActorCNN, CriticCNN
-from sac_torch.utils import set_seed_everywhere, huber_loss
+from sac_torch.utils import set_seed_everywhere, huber_loss, get_helper_logger, get_default_rb_dict, Logger
+from pysim.environment import SingleControl, CrazyCar, FrameStack
 
 
 class SAC:
     """
     Ref: https://arxiv.org/pdf/1812.05905.pdf
     """
-    def __init__(self, obs_dim, action_space,
+    def __init__(self, obs_dim, action_space, date,
                  gamma=0.99,
                  tau=0.05,
                  lr=3e-4,
@@ -21,8 +24,6 @@ class SAC:
                  target_update_interval=1,
                  device='cuda'):
 
-        logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(name)s - %(levelname)s: %(message)s')
-        self.logger = logging.getLogger('SAC')
         self.gamma = gamma
         self.tau = tau
         self.alpha = alpha
@@ -30,6 +31,15 @@ class SAC:
         self.target_update_interval = target_update_interval
 
         self.device = device
+
+        # logger
+        self.logger = get_helper_logger('SAC', date)
+        self.logger.info("SAC algorithm has started")
+        self.logger.info(f"gamma: {str(gamma)}")
+        self.logger.info(f"tau: {str(tau)}")
+        self.logger.info(f"alpha: {str(alpha)}")
+        self.logger.info(f"target_update_interval: {str(target_update_interval)}")
+        self.logger.info(f"device: {str(device)}")
 
         # critic
         self.critic = CriticCNN(obs_dim=obs_dim, act_dim=action_space.shape[0]).to(self.device)
@@ -129,6 +139,7 @@ class SAC:
         return actor_loss, alpha_loss
 
     def update_parameters(self, memory, batch_size, updates):
+
         batch = memory.sample(batch_size)
 
         # to tensor
@@ -154,6 +165,8 @@ class SAC:
     def load_model(self, actor, critic):
         self.actor = actor
         self.critic = critic
+
+        self.logger.info('Weight loading')
 
 
 def eval(env, agent):
@@ -188,17 +201,27 @@ def run(batch_size=256,
         ):
 
     set_seed_everywhere(seed)
+    date = datetime.now().strftime("%b_%d_%Y_%H%M%S")
+    logger_main = get_helper_logger('Main', date)
+    logger_main.info(f'Process has started')
+    logger_main.info(f'batch_size: {str(batch_size)}')
+    logger_main.info(f'replay_size: {str(replay_size)}')
+    logger_main.info(f'n_steps: {str(n_steps)}')
+    logger_main.info(f'gamma: {str(gamma)}')
+    logger_main.info(f'tau: {str(tau)}')
+    logger_main.info(f'lr: {str(lr)}')
+    logger_main.info(f'alpha: {str(alpha)}')
+    logger_main.info(f'target_update_interval: {str(target_update_interval)}')
+    logger_main.info(f'steps_per_epochs: {str(steps_per_epochs)}')
+    logger_main.info(f'seed: {str(seed)}')
 
-    from pysim.environment import SingleControl, CrazyCar, FrameStack
-    from cpprb import ReplayBuffer
-    from sac_torch.utils import get_default_rb_dict, Logger
-
-    env = CrazyCar(renders=False)
+    env = CrazyCar(renders=False, date=date)
     # env = FrameStack(env)
 
     agent = SAC(
         obs_dim=env.observation_space.shape[0],
         action_space=env.action_space,
+        date=date,
         gamma=gamma,
         tau=tau,
         lr=lr,
@@ -210,7 +233,7 @@ def run(batch_size=256,
     rb_kwargs = get_default_rb_dict(env.observation_space.shape, env.action_space.shape, replay_size)
     rb = ReplayBuffer(**rb_kwargs)
 
-    logger = Logger()
+    logger = Logger(date)
 
     # save hyperparameter
     logger.save_hyperparameter(
@@ -267,6 +290,7 @@ def run(batch_size=256,
             logger.store('Reward/train', episode_rew)
             logger.store('Steps/train', episode_steps)
             logger.store('N_Collision/train', n_collision)
+            logger_main.info(f"End of episode at {t}")
 
             episode_rew, episode_steps = 0, 0
 
@@ -291,6 +315,10 @@ def run(batch_size=256,
             logger.store('Reward/test', mean_rew)
             logger.store('Steps/test', mean_steps)
             logger.store('N_Collision/test', n_collision)
+            logger_main.info(f"Evaluation at {t}")
+            logger_main.info(f"Reward: {str(mean_rew)}")
+            logger_main.info(f"Steps: {str(mean_steps)}")
+            logger_main.info(f"N_Collision: {str(n_collision)}")
 
             # save a model
             if best_to_save <= mean_rew:
