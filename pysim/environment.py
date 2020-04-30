@@ -23,6 +23,7 @@ from sac_torch.utils import get_helper_logger
 class CrazyCar(ABC):
 
     def __init__(self,
+                 track_id=1,
                  date=None,
                  urdfRoot=pybullet_data.getDataPath(),
                  renders=False,
@@ -44,6 +45,7 @@ class CrazyCar(ABC):
         self._poscar = positions.CarPosition(origin)
         self._reward_function = get_reward_function()[reward_name]
         self._speed = 0
+        self._track_id = track_id
 
         self.logger = get_helper_logger(self.__class__.__name__, date)
         self.logger.info(f'{str(self.__class__.__name__)}-Environment has created')
@@ -73,6 +75,7 @@ class CrazyCar(ABC):
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
         self.logger.info(f'Action shape: {str(self.action_space.shape)}')
 
+        self.logger.info(f'Track id: {str(self._track_id)}')
 
     def _reset(self):
         self.logger.info("Environment has reset")
@@ -86,7 +89,7 @@ class CrazyCar(ABC):
         self._planeId = self._p.loadURDF("./pysim/data/plane.urdf")
 
         # spawn race track
-        self._direction_field = track.createRaceTrack(self._p, self._origin)
+        self._direction_field, self.wall_ids = track.createRaceTrack(self._p, self._origin, track_id=self._track_id)
 
         # reset common variables
         for i in range(100):
@@ -111,7 +114,7 @@ class CrazyCar(ABC):
             carPos = newCarPos
 
         self._racecar = agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot,
-                                      timeStep=self._timeStep, direction_field=self._direction_field)
+                                      timeStep=self._timeStep, direction_field=self._direction_field, wall_ids=self.wall_ids)
 
         # get observation
         self._observation = self._racecar.getObservation()
@@ -314,6 +317,9 @@ class FrameStack:
     @property
     def action_space(self):
         return self.env.action_space
+
+    def report(self):
+        return self.env.report()
 
     @property
     def observation_space(self):

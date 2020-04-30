@@ -12,7 +12,7 @@ from pysim import track
 
 class Racecar:
 
-    def __init__(self, bullet_client, origin, carpos, planeId, direction_field, urdfRootPath='', timeStep=0.01):
+    def __init__(self, bullet_client, origin, carpos, planeId, direction_field, wall_ids, urdfRootPath='', timeStep=0.01, ):
         self.urdfRootPath = urdfRootPath
         self.timeStep = timeStep
         self._p = bullet_client
@@ -36,6 +36,7 @@ class Racecar:
         self.steeringMultiplier = 0.5
         self.atGoal = False
         self.nCollision = 0
+        self.wall_ids = wall_ids
         self.reset()
 
     def reset(self):
@@ -223,7 +224,7 @@ class Racecar:
         raw = self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat, projectionMatrix=projMat,
                                      renderer=self._p.ER_BULLET_HARDWARE_OPENGL, lightColor=[0, 0, 0], shadow=0)[4]
         raw = np.array(raw).reshape((CAMERA_HEIGHT, CAMERA_WIDTH, 1))
-        raw = np.where(np.logical_and(0 < raw, raw < 9), 1, np.where(raw >= 9, 4, raw))  # segment wall and another car
+        raw = np.where(np.isin(raw, self.wall_ids), 1, np.where(raw > max(self.wall_ids), 4, raw))  # segment wall and another car
         # raw = np.where(raw > 0, 1, raw)
         # img_rgb = rgba2rgb(raw)
         # img_gray = np.expand_dims(rgb2gray(img_rgb), -1)
