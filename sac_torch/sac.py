@@ -216,7 +216,8 @@ def run(batch_size=256,
     logger_main.info(f'seed: {str(seed)}')
 
     env = CrazyCar(renders=False, date=date)
-    # env = FrameStack(env)
+    env = FrameStack(env)
+    logger_main.info(f'Environment: {str(env.__class__.__name__)}')
 
     agent = SAC(
         obs_dim=env.observation_space.shape[0],
