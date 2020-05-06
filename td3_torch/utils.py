@@ -2,23 +2,19 @@ import numpy as np
 import random
 import torch
 import torch.nn as nn
-import os
+import os, sys
 import logging
 import json
-
-from datetime import datetime
 
 from torch.utils.tensorboard import SummaryWriter
 
 
-def set_seed(seed=100):
+def set_seed_everywhere(seed):
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
-    torch.backends.cudnn.enabled = False
 
 
 def huber_loss(x, delta=10.):
@@ -38,6 +34,24 @@ def huber_loss(x, delta=10.):
     )
 
 
+def weight_init(m):
+    """
+    delta-orthogonal init.
+    Ref: https://arxiv.org/pdf/1806.05393.pdf
+    """
+
+    if isinstance(m, nn.Linear):
+        nn.init.orthogonal_(m.weight.data)
+        m.bias.data.fill_(0.0)
+    elif isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+        assert m.weight.size(2) == m.weight.size(3)
+        m.weight.data.fill_(0.0)
+        m.bias.data.fill_(0.0)
+        mid = m.weight.size(2) // 2
+        gain = nn.init.calculate_gain('relu')
+        nn.init.orthogonal_(m.weight.data[:, :, mid, mid], gain)
+
+
 def make_mlp(sizes, activation, output_activation=nn.Identity):
     layers = []
     for j in range(len(sizes)-1):
@@ -48,8 +62,6 @@ def make_mlp(sizes, activation, output_activation=nn.Identity):
             layers += [nn.Linear(sizes[j], sizes[j+1]), output_activation()]
     return nn.Sequential(*layers)
 
-
-# set_seed(100)
 
 def get_default_rb_dict(obs_dim, act_dim, size):
     return {
@@ -71,26 +83,49 @@ def get_default_rb_dict(obs_dim, act_dim, size):
     }
 
 
+def get_helper_logger(name, date):
+    # Create model directory
+    if not os.path.exists(f'./save/{date}/logs'):
+        os.makedirs(f'./save/{date}/logs')
+
+    log = logging.getLogger(name)
+    log.setLevel(level=logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    fh = logging.FileHandler(f'./save/{date}/logs/{name}.log')
+    fh.setLevel(level=logging.INFO)
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(level=logging.WARNING)
+    ch.setFormatter(formatter)
+    log.addHandler(ch)
+
+    return log
+
+
 class Logger:
 
-    def __init__(self, level=None):
-        logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(name)s - %(levelname)s: %(message)s')
-        self.logger = logging.getLogger('Logger')
-        self.start_date = datetime.now().strftime("%b_%d_%Y_%H%M%S")
+    def __init__(self, date):
+        self.start_date = date
+
         self.steps = 0
         self.writer = None
         self.hyperparameter = None
 
         self.setup_directory()
+
+        self.logger = get_helper_logger('Logger', date)
+
         self.logger.info('Logger is ready')
 
     def setup_directory(self):
         # Create model directory
-        if not os.path.exists(f'./save/{self.start_date}'):
+        if not os.path.exists(f'./save/{self.start_date}/models'):
             os.makedirs(f'./save/{self.start_date}/models')
 
     def start(self):
-
         self.writer = SummaryWriter(f'./save/{self.start_date}/')
 
         with open(f'./save/{self.start_date}/params.json', 'w') as f:

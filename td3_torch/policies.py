@@ -4,10 +4,7 @@ import torch.nn.functional as F
 
 import math
 
-from td3_torch.utils import set_seed, make_mlp
-
-
-# set_seed(100)
+from td3_torch.utils import make_mlp
 
 
 class BaseModel(nn.Module):
@@ -140,7 +137,7 @@ class ImpalaCNN(nn.Module):
     Ref: https://arxiv.org/abs/1802.01561
     """
 
-    def __init__(self, image_size, depth_in=1):
+    def __init__(self, image_size, depth_in=4):
         super().__init__()
         layers = []
         for depth_out in [16, 32, 32]:

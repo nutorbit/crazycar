@@ -2,20 +2,20 @@ import torch
 import numpy as np
 import notify
 
+from datetime import datetime
 from tqdm import trange
 
-from td3_torch.utils import Logger, set_seed, huber_loss, get_default_rb_dict
+from td3_torch.utils import Logger, huber_loss, get_default_rb_dict, get_helper_logger, set_seed_everywhere
 from td3_torch.policies import ActorCritic, ActorCriticCNN
 
-from pysim.environment import CrazyCar, SingleControl
+from pysim.environment import CrazyCar, SingleControl, FrameStack
 
 from cpprb import PrioritizedReplayBuffer
 from cpprb import ReplayBuffer
 
 
 class Agent:
-    def __init__(self, observation_space, action_space,
-                 logger=None,
+    def __init__(self, observation_space, action_space, date,
                  tau=0.005,
                  gamma=0.9,
                  target_noise=0.2,
@@ -25,12 +25,13 @@ class Agent:
                  name='Anonymous',
                  actor_lr=1e-4,
                  critic_lr=1e-4,
-                 device='cpu'
+                 device='cuda'
                  ):
 
         self.name = name
         self.observation_space = observation_space
         self.action_space = action_space
+        self.last_actor_loss = 0
 
         self.tau = tau
         self.gamma = gamma
@@ -39,9 +40,19 @@ class Agent:
         self.policy_delay = policy_delay
         self.device = device
 
-        self.logger = logger
+        # logger
+        self.logger = get_helper_logger('TD3', date)
+        self.logger.info("TD3 algorithm has started")
+        self.logger.info(f"tau: {str(tau)}")
+        self.logger.info(f"gamma: {str(gamma)}")
+        self.logger.info(f"target_noise: {str(target_noise)}")
+        self.logger.info(f"replay_size: {str(replay_size)}")
+        self.logger.info(f"noise_clip: {str(noise_clip)}")
+        self.logger.info(f"policy_delay: {str(policy_delay)}")
+        self.logger.info(f"actor_lr: {str(actor_lr)}")
+        self.logger.info(f"critic_lr: {str(critic_lr)}")
+        self.logger.info(f"device: {str(device)}")
 
-        # self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
         self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
 
         rb_kwargs = get_default_rb_dict(observation_space.shape, action_space.shape, replay_size)
@@ -58,24 +69,19 @@ class Agent:
     def load_ac(self, ac):
         self.ac = ac
 
-    def actor_loss(self, batch):
-        obs = batch['obs']
+    def actor_loss(self, obs):
         return - self.ac.critic.q1_forward(obs, self.ac.actor(obs)).mean()
 
-    def critic_loss(self, batch):
-        obs, act, next_obs, rew, done, weights = batch['obs'], batch['act'], batch['next_obs'], batch['rew'], \
-                                                 batch['done'], batch['weights']
-
-        # print(obs.shape, act.shape, next_obs.shape, rew.shape, done.shape)
+    def critic_loss(self, obs, act, next_obs, rew, done, weights):
 
         with torch.no_grad():  # target
-            pi_target = self.ac.actor_target(obs)
+            pi_target = self.ac.actor_target(next_obs)
 
             noise = torch.randn_like(pi_target) * self.target_noise
             noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
             next_act = torch.clamp(pi_target + noise, -1, 1)
 
-            target_q1, target_q2 = self.ac.critic_target(obs, next_act)
+            target_q1, target_q2 = self.ac.critic_target(next_obs, next_act)
             target_q = torch.min(target_q1, target_q2)
             target = rew + self.gamma * (1 - done) * target_q
 
@@ -84,13 +90,10 @@ class Agent:
         td_error1 = current_q1 - target
         td_error2 = current_q2 - target
 
-        # loss_q1 = (td_error1 ** 2).mean()
-        # loss_q2 = (td_error2 ** 2).mean()
+        loss_q1 = (huber_loss(td_error1) * weights).mean()
+        loss_q2 = (huber_loss(td_error2) * weights).mean()
 
-        loss_q1 = torch.mean(huber_loss(td_error1) * weights)
-        loss_q2 = torch.mean(huber_loss(td_error2) * weights)
-
-        loss_q = loss_q1 + loss_q2
+        loss_q = (loss_q1 + loss_q2).mean()
 
         return loss_q
 
@@ -111,41 +114,58 @@ class Agent:
         self.ac.actor_target.soft_update(self.ac.actor, self.tau)
         self.ac.critic_target.soft_update(self.ac.critic, self.tau)
 
-    def update_critic(self, batch):
+    def update_critic(self, obs, act, next_obs, rew, done, weights):
         self.ac.critic_optimizer.zero_grad()
-        loss_critic = self.critic_loss(batch)
+        loss_critic = self.critic_loss(obs, act, next_obs, rew, done, weights)
         loss_critic.backward()
         self.ac.critic_optimizer.step()
 
-        if self.logger is not None:
-            self.logger.store(f'Loss/loss_critic/{self.name}', loss_critic.mean())
+        self.logger.debug(f'Critic loss: {loss_critic}')
 
-    def update_actor(self, batch):
+        return loss_critic
+
+    def update_actor(self, obs):
         self.ac.actor_optimizer.zero_grad()
-        loss_actor = self.actor_loss(batch)
+        loss_actor = self.actor_loss(obs)
         loss_actor.backward()
         self.ac.actor_optimizer.step()
 
-        if self.logger is not None:
-            self.logger.store(f'Loss/loss_actor/{self.name}', loss_actor.mean())
+        self.logger.debug(f'Actor loss: {loss_actor}')
 
-    def update(self, batch, timer):
+        return loss_actor
 
-        self.update_critic(batch)
+    def update_parameters(self, batch_size, timer):
 
+        batch = self.replay_buffer.sample(batch_size)
+
+        # to tensor
+        obs = torch.FloatTensor(batch['obs']).to(self.device)
+        act = torch.FloatTensor(batch['act']).to(self.device)
+        next_obs = torch.FloatTensor(batch['next_obs']).to(self.device)
+        rew = torch.FloatTensor(batch['rew']).to(self.device)
+        done = torch.FloatTensor(batch['done']).to(self.device)
+        weights = torch.FloatTensor(batch['weights']).to(self.device)
+
+        # update critic
+        critic_loss = self.update_critic(obs, act, next_obs, rew, done, weights)
+        actor_loss = self.last_actor_loss  # restore value for save
+
+        # for priority replay
+        td_error = self.compute_td_error(obs, act, next_obs, rew, done).detach().cpu().numpy()
+        indexes = batch['indexes']
+
+        # update actor & target
         if timer % self.policy_delay == 0:
 
-            # Freeze for faster compute
-            for p in self.ac.critic.parameters():
-                p.requires_grad = False
-
-            self.update_actor(batch)
-
-            # Un-Freeze
-            for p in self.ac.critic.parameters():
-                p.requires_grad = True
+            actor_loss = self.update_actor(obs)
+            self.last_actor_loss = actor_loss
 
             self.update_targets()
+
+        # update priority
+        self.replay_buffer.update_priorities(indexes, np.abs(td_error) + 1e-6)
+
+        return actor_loss, critic_loss
 
     def scale_action(self, act):
         low, high = self.action_space.low, self.action_space.high
@@ -205,203 +225,173 @@ class Agent:
         return act
 
 
-class TD3:
-    """
-    Ref: https://spinningup.openai.com/en/latest/algorithms/td3.html
-    """
+def eval(env, agent):
+    rews, steps = [], []
+    for PosIndex in range(1, 1 + 1):
+        obs = env.reset(PosIndex=PosIndex, random_position=False)
+        done = False
+        episode_reward, episode_steps = 0, 0
+        while not done:
+            act = agent.predict(obs)
+            obs, rew, done, _ = env.step(act)
+            episode_reward += rew
+            episode_steps += 1
+        steps.append(episode_steps)
+        rews.append(episode_reward)
 
-    def __init__(self, env,
-                 steps_per_epoch=4000,
-                 start_steps=10000,
-                 update_after=1000,
-                 update_every=20,
-                 policy_delay=2,
-                 act_noise=0.1,
-                 target_noise=0.02,
-                 noise_clip=0.5,
-                 tau=0.005,
-                 gamma=0.9,
-                 actor_lr=1e-3,
-                 critic_lr=1e-3,
-                 replay_size=100000,
-                 batch_size=100,
-                 seed=100,
-                 device='cuda'):
+    return np.mean(rews), np.mean(steps)
 
-        # Hyperparameter
-        self.env = env
-        self.steps_per_epoch = steps_per_epoch
-        self.start_steps = start_steps
-        self.update_after = update_after
-        self.update_every = update_every
-        self.act_noise = act_noise
-        self.policy_delay = policy_delay
-        self.tau = tau
-        self.gamma = gamma
-        self.noise_clip = noise_clip
-        self.target_noise = target_noise
-        self.replay_size = replay_size
-        self.batch_size = batch_size
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
-        self.seed = seed
-        self.device = device
 
-        self.logger = Logger()
+def run(steps_per_epoch=4000,
+        start_steps=10000,
+        update_after=1000,
+        n_steps=int(2e5),
+        update_every=20,
+        policy_delay=2,
+        act_noise=0.1,
+        target_noise=0.02,
+        noise_clip=0.5,
+        tau=0.005,
+        gamma=0.9,
+        actor_lr=1e-3,
+        critic_lr=1e-3,
+        replay_size=100000,
+        batch_size=100,
+        seed=100,
+        ):
 
-        # Save hyperparameter
-        self.logger.save_hyperparameter(
-            algorithm='TD3',
-            env=env.__class__.__name__,
-            observation_shape=env.observation_space.shape,
-            action_shape=env.action_space.shape,
-            steps_per_epoch=steps_per_epoch,
-            start_steps=start_steps,
-            update_after=update_after,
-            update_every=update_every,
-            act_noise=act_noise,
-            policy_delay=policy_delay,
-            tau=tau,
-            gamma=gamma,
-            noise_clip=noise_clip,
-            target_noise=target_noise,
-            replay_size=replay_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
-            seed=seed
-        )
+    set_seed_everywhere(seed)
+    date = datetime.now().strftime("%b_%d_%Y_%H%M%S")
+    logger_main = get_helper_logger('Main', date)
+    logger_main.info(f'Process has started')
+    logger_main.info(f'step_per_epoch: {steps_per_epoch}')
+    logger_main.info(f'start_steps: {start_steps}')
+    logger_main.info(f'update_after: {update_after}')
+    logger_main.info(f'n_steps: {n_steps}')
+    logger_main.info(f'update_every: {update_every}')
+    logger_main.info(f'policy_delay: {policy_delay}')
+    logger_main.info(f'act_noise: {act_noise}')
+    logger_main.info(f'target_noise: {target_noise}')
+    logger_main.info(f'noise_clip: {noise_clip}')
+    logger_main.info(f'tau: {tau}')
+    logger_main.info(f'gamma: {gamma}')
+    logger_main.info(f'actor_lr: {actor_lr}')
+    logger_main.info(f'critic_lr: {critic_lr}')
+    logger_main.info(f'replay_size: {replay_size}')
+    logger_main.info(f'batch_size: {batch_size}')
+    logger_main.info(f'seed: {seed}')
 
-        # Set random seed
-        # set_seed(seed)
+    env = SingleControl(date=date)
+    env = FrameStack(env)
+    logger_main.info(f'Environment: {str(env.__class__.__name__)}')
 
-        # Set agent
-        self.agent = Agent(
-            observation_space=self.env.observation_space,
-            action_space=self.env.action_space,
-            logger=self.logger,
-            tau=tau,
-            gamma=gamma,
-            target_noise=target_noise,
-            replay_size=replay_size,
-            noise_clip=noise_clip,
-            policy_delay=policy_delay,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
-            device=device
-        )
+    agent = Agent(
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        date=date,
+        tau=tau,
+        gamma=gamma,
+        target_noise=target_noise,
+        replay_size=replay_size,
+        noise_clip=noise_clip,
+        policy_delay=policy_delay,
+        actor_lr=actor_lr,
+        critic_lr=critic_lr,
+    )
 
-    def eval(self):
-        rews, steps = [], []
-        for PosIndex in range(1, 1+1):
-            obs = self.env.reset(PosIndex=PosIndex, random_position=False)
-            done = False
-            episode_reward, episode_steps = 0, 0
-            while not done:
-                act = self.agent.predict(obs)
-                # print(act)
-                obs, rew, done, _ = self.env.step(act)
-                episode_reward += rew
-                episode_steps += 1
-            steps.append(episode_steps)
-            rews.append(episode_reward)
+    logger = Logger(date)
 
-        print(f'[EVALUATION] mean_reward: {np.mean(rews)}, mean_steps: {np.mean(steps)}')
+    logger.save_hyperparameter(
+        algorithm='TD3',
+        env=env.__class__.__name__,
+        observation_shape=env.observation_space.shape,
+        action_shape=env.action_space.shape,
+        steps_per_epoch=steps_per_epoch,
+        start_steps=start_steps,
+        update_after=update_after,
+        update_every=update_every,
+        act_noise=act_noise,
+        policy_delay=policy_delay,
+        tau=tau,
+        gamma=gamma,
+        noise_clip=noise_clip,
+        target_noise=target_noise,
+        replay_size=replay_size,
+        batch_size=batch_size,
+        actor_lr=actor_lr,
+        critic_lr=critic_lr,
+        seed=seed
+    )
 
-        return np.mean(rews), np.mean(steps)
+    logger.start()
 
-    def learn(self, epochs):
-        total_timesteps = epochs * self.steps_per_epoch
+    best_to_save = float('-inf')
+    episode_rew, episode_steps = 0, 0
 
-        obs = self.env.reset(random_position=False)
-        episode_rew, episode_len, best_rew = 0, 0, float('-inf')
-        self.logger.start()
+    obs = env.reset(random_position=False)
 
-        for t in trange(int(2e5)):
-            if t < self.start_steps:
-                unscaled_act = np.array([self.env.action_space.sample()])
-                scaled_act = self.agent.scale_action(unscaled_act)
-            else:
-                scaled_act = self.agent.raw_predict(obs)
-                # print(scaled_act, scaled_act.shape)
+    for t in trange(n_steps):
 
-            noise = np.random.normal(0, self.act_noise)
-            scaled_act = np.clip(scaled_act + noise, -1, 1)
+        if t < start_steps:
+            unscaled_act = np.array([env.action_space.sample()])
+            scaled_act = agent.scale_action(unscaled_act)
+        else:
+            scaled_act = agent.raw_predict(obs)
 
-            # print(scaled_act.shape)
-            next_obs, rew, done, _ = self.env.step(self.agent.unscale_action(scaled_act))
+        noise = np.random.normal(0, act_noise)
+        scaled_act = np.clip(scaled_act + noise, -1, 1)
 
-            episode_rew += rew
-            episode_len += 1
+        next_obs, rew, done, _ = env.step(agent.unscale_action(scaled_act))
 
-            self.agent.replay_buffer.add(obs=obs, next_obs=next_obs, act=scaled_act, rew=rew, done=done)
+        episode_rew += rew
+        episode_steps += 1
 
-            obs = next_obs
+        agent.replay_buffer.add(obs=obs, next_obs=next_obs, act=scaled_act, rew=rew, done=done)
 
-            if done:
-                n_collision = self.env.report()
+        obs = next_obs
 
-                obs = self.env.reset(random_position=False)
+        # reset when terminated
+        if done:
+            n_collision = env.report()
 
-                self.logger.store('Reward/train', episode_rew)
-                self.logger.store('Steps/train', episode_len)
-                self.logger.store('N_Collision/train', n_collision)
+            obs = env.reset(random_position=False)
 
-                episode_rew, episode_len = 0, 0
+            logger.store('Reward/train', episode_rew)
+            logger.store('Steps/train', episode_steps)
+            logger.store('N_Collision/train', n_collision)
+            logger_main.info(f"End of episode at {t}")
 
-            if t > self.update_after and t % self.update_every == 0:
-                for j in range(self.update_every):
-                    batch = self.agent.replay_buffer.sample(self.batch_size)
-                    batch = {
-                        key: torch.as_tensor(val, dtype=torch.float32).to(self.device) if key != 'indexes' else val
-                        for key, val in batch.items()
-                    }
-                    # normalize reward
-                    # batch['rew'] = (batch['rew'] - batch['rew'].mean())/(batch['rew'] + 1e-6)
+            episode_rew, episode_steps = 0, 0
 
-                    # update
-                    self.agent.update(batch, j)
+        # update nn
+        if t > update_after and t % update_every == 0:
+            for j in range(update_every):
+                actor_loss, critic_loss = agent.update_parameters(batch_size, j)
 
-                    # Calculate td error for PER
-                    td_error = self.agent.compute_td_error(batch['obs'], batch['act'], batch['next_obs'],
-                                                           batch['rew'], batch['done']).cpu().numpy()
+                logger.store('Loss/Actor', actor_loss)
+                logger.store('Loss/Critic', critic_loss)
 
-                    # update priorities
-                    self.agent.replay_buffer.update_priorities(batch['indexes'], np.abs(td_error) + 1e-6)
+        # eval and save
+        if (t + 1) % steps_per_epoch == 0:
+            n_collision = env.report()
 
-            if (t+1) % self.steps_per_epoch == 0:
-                n_collision = self.env.report()
+            # test
+            mean_rew, mean_steps = eval(env, agent)
+            logger.store('Reward/test', mean_rew)
+            logger.store('Steps/test', mean_steps)
+            logger.store('N_Collision/test', n_collision)
+            logger_main.info(f"Evaluation at {t}")
+            logger_main.info(f"Reward: {str(mean_rew)}")
+            logger_main.info(f"Steps: {str(mean_steps)}")
+            logger_main.info(f"N_Collision: {str(n_collision)}")
 
-                mean_rew, mean_steps = self.eval()
+            # save a model
+            if best_to_save <= mean_rew:
+                best_to_save = mean_rew
+                logger.save_model(agent.ac)
 
-                self.logger.store('Reward/test', mean_rew)
-                self.logger.store('Steps/test', mean_steps)
-                self.logger.store('N_Collision/test', n_collision)
-
-                # save model here
-                if best_rew < mean_steps:
-                    best_rew = mean_steps
-                    self.logger.save_model(self.agent.ac)
-
-                    # line message
-                    # notify.alert(f"{self.env.__class__.__name__}\nReward: {mean_rew:.3f}\nSteps:{mean_steps:.3f}\nTimestep: {t+1}/{total_timesteps}")
-
-            self.logger.update_steps()
+        logger.update_steps()
 
 
 if __name__ == '__main__':
-
-    print(f"[STATUS] CUDA: {torch.cuda.is_available()}")
-    print(f"[STATUS] GPU: {torch.cuda.get_device_name(0)}")
-
-    # torch.cuda.empty_cache()
-    # torch.cuda.memory_allocated()
-    # torch.set_num_threads(12)
-
-    # env = CrazyCar()
-    env = SingleControl()
-    # import gym
-    # set_seed(100)
-    # env = gym.make('MountainCarContinuous-v0')
-    model = TD3(env)
-    model.learn(1000)
+    run()
