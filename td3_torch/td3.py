@@ -14,7 +14,7 @@ from cpprb import PrioritizedReplayBuffer
 from cpprb import ReplayBuffer
 
 
-class Agent:
+class TD3:
     def __init__(self, observation_space, action_space, date,
                  tau=0.005,
                  gamma=0.9,
@@ -285,7 +285,7 @@ def run(steps_per_epoch=4000,
     env = FrameStack(env)
     logger_main.info(f'Environment: {str(env.__class__.__name__)}')
 
-    agent = Agent(
+    agent = TD3(
         observation_space=env.observation_space,
         action_space=env.action_space,
         date=date,
