@@ -22,9 +22,8 @@ from sac_torch.utils import get_helper_logger
 
 class CrazyCar(ABC):
 
-    def __init__(self,
+    def __init__(self, date,
                  track_id=1,
-                 date=None,
                  urdfRoot=pybullet_data.getDataPath(),
                  renders=False,
                  origin=None,
@@ -313,6 +312,11 @@ class FrameStack:
         self.k = k
         self.env = env
         self.frames = deque([], maxlen=k)
+        self.logger = self.env.logger
+
+        self.logger.info('Use Stack Frame environment')
+        self.logger.info(f'New Observation shape: {str(self.observation_space.shape)}')
+        self.logger.info(f'New Action shape: {str(self.action_space.shape)}')
 
     @property
     def action_space(self):
