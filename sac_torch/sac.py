@@ -261,8 +261,8 @@ def run(batch_size=256,
 
     updates = 0
     best_to_save = float('-inf')
-
     episode_rew, episode_steps = 0, 0
+
     obs = env.reset(random_position=False)
 
     for t in trange(n_steps):

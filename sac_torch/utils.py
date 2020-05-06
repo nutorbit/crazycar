@@ -140,7 +140,7 @@ class Logger:
         self.steps += 1
 
     def save_model(self, model):
-        torch.save(model, f'./save/{self.start_date}/models/td3_{self.steps + 1}.pth')
+        torch.save(model, f'./save/{self.start_date}/models/sac_{self.steps + 1}.pth')
         self.logger.info('Model has saved.')
 
     def store(self, name, val):
