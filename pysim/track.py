@@ -1,8 +1,3 @@
-import pybullet as p
-import time
-import math
-import pybullet_data
-import pygame
 from pysim.maps import Map
 
 

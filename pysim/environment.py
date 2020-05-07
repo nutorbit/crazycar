@@ -1,11 +1,9 @@
 import math
 from abc import ABC
 
-import gym
 import time
 import pybullet
 import random
-import pybullet_data
 import numpy as np
 
 from collections import deque
@@ -22,9 +20,9 @@ from sac_torch.utils import get_helper_logger
 
 class CrazyCar(ABC):
 
-    def __init__(self, date,
+    def __init__(self,
+                 date=None,
                  track_id=1,
-                 urdfRoot=pybullet_data.getDataPath(),
                  renders=False,
                  origin=None,
                  reward_name="theta"):
@@ -33,7 +31,6 @@ class CrazyCar(ABC):
             origin = [0, 0, 0]
 
         self._timeStep = 0.01
-        self._urdfRoot = urdfRoot
         self._actionRepeat = ACTION_REP
         self._observation = []
         self._envStepCounter = 0
@@ -45,10 +42,7 @@ class CrazyCar(ABC):
         self._reward_function = get_reward_function()[reward_name]
         self._speed = 0
         self._track_id = track_id
-
-        self.logger = get_helper_logger(self.__class__.__name__, date)
-        self.logger.info(f'{str(self.__class__.__name__)}-Environment has created')
-        self.logger.info(f'Reward function: {str(self._reward_function)}')
+        self.logger = None
 
         if self._renders:
             self._p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
@@ -62,7 +56,6 @@ class CrazyCar(ABC):
         observation_high = np.full(observationDim, 1)
         observation_low = np.zeros(observationDim)
         self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
-        self.logger.info(f'Observation shape: {str(self.observation_space.shape)}')
 
         # define action space
         if self._isDiscrete:
@@ -72,14 +65,21 @@ class CrazyCar(ABC):
             action_high = np.array([1, 1])
 
             self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float32)
-        self.logger.info(f'Action shape: {str(self.action_space.shape)}')
 
-        self.logger.info(f'Track id: {str(self._track_id)}')
+        if date is not None:
+            self.logger = get_helper_logger(self.__class__.__name__, date)
+            self.logger.info(f'{str(self.__class__.__name__)}-Environment has created')
+            self.logger.info(f'Reward function: {str(self._reward_function)}')
+            self.logger.info(f'Observation shape: {str(self.observation_space.shape)}')
+            self.logger.info(f'Action shape: {str(self.action_space.shape)}')
+            self.logger.info(f'Track id: {str(self._track_id)}')
 
     def _reset(self):
-        self.logger.info("Environment has reset")
+        if self.logger is not None:
+            self.logger.info("Environment has reset")
         self._p.resetSimulation()
         self._p.setTimeStep(self._timeStep)
+        self._p.setPhysicsEngineParameter(fixedTimeStep=1.0 / 60., numSolverIterations=550, numSubSteps=8)
 
         # time
         self._lastTime = time.time()
@@ -112,7 +112,7 @@ class CrazyCar(ABC):
         else:
             carPos = newCarPos
 
-        self._racecar = agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot,
+        self._racecar = agent.Racecar(self._p, self._origin, carPos, self._planeId,
                                       timeStep=self._timeStep, direction_field=self._direction_field, wall_ids=self.wall_ids)
 
         # get observation
@@ -233,7 +233,7 @@ class MultiCar(CrazyCar):
 
         # 2 agent
         self._racecars = [
-            agent.Racecar(self._p, self._origin, carPos, self._planeId, urdfRootPath=self._urdfRoot, \
+            agent.Racecar(self._p, self._origin, carPos, self._planeId, \
                           timeStep=self._timeStep, direction_field=self._direction_field)
             for carPos in pos[0]
         ]
@@ -314,16 +314,14 @@ class FrameStack:
         self.frames = deque([], maxlen=k)
         self.logger = self.env.logger
 
-        self.logger.info('Use Stack Frame environment')
-        self.logger.info(f'New Observation shape: {str(self.observation_space.shape)}')
-        self.logger.info(f'New Action shape: {str(self.action_space.shape)}')
+        if self.logger is not None:
+            self.logger.info('Use Stack Frame environment')
+            self.logger.info(f'New Observation shape: {str(self.observation_space.shape)}')
+            self.logger.info(f'New Action shape: {str(self.action_space.shape)}')
 
     @property
     def action_space(self):
         return self.env.action_space
-
-    def report(self):
-        return self.env.report()
 
     @property
     def observation_space(self):
@@ -350,6 +348,9 @@ class FrameStack:
 
     def _get_obs(self):
         return np.concatenate(list(self.frames), axis=-1)
+
+    def report(self):
+        return self.env.report()
 
 
 if __name__ == '__main__':

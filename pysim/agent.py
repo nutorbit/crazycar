@@ -4,16 +4,42 @@ import time
 
 import numpy as np
 
-from skimage.color import rgba2rgb, rgb2gray
+# from skimage.color import rgba2rgb, rgb2gray
 
 from pysim.constants import *
+
 from pysim import track
+
+
+def rgba2rgb(rgba, background=(255, 255, 255)):
+    row, col, ch = rgba.shape
+
+    if ch == 3:
+        return rgba
+
+    assert ch == 4, 'RGBA image has 4 channels.'
+
+    rgb = np.zeros((row, col, 3), dtype='float32')
+    r, g, b, a = rgba[:, :, 0], rgba[:, :, 1], rgba[:, :, 2], rgba[:, :, 3]
+
+    a = np.asarray(a, dtype='float32') / 255.0
+
+    R, G, B = background
+
+    rgb[:, :, 0] = r * a + (1.0 - a) * R
+    rgb[:, :, 1] = g * a + (1.0 - a) * G
+    rgb[:, :, 2] = b * a + (1.0 - a) * B
+
+    return np.asarray(rgb, dtype='uint8')
+
+
+def rgb2gray(rgb):
+    return np.dot(rgb[..., :3], [0.2989, 0.5870, 0.1140])
 
 
 class Racecar:
 
-    def __init__(self, bullet_client, origin, carpos, planeId, direction_field, wall_ids, urdfRootPath='', timeStep=0.01, ):
-        self.urdfRootPath = urdfRootPath
+    def __init__(self, bullet_client, origin, carpos, planeId, direction_field, wall_ids, timeStep=0.01, ):
         self.timeStep = timeStep
         self._p = bullet_client
         self._origin = origin
@@ -220,14 +246,21 @@ class Racecar:
         1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0000200271606445, -1.0, 0.0, 0.0, -0.02000020071864128,
         0.0)
 
-        # rgba to gray
+        # segment
+        # raw = self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat, projectionMatrix=projMat,
+        #                              renderer=self._p.ER_BULLET_HARDWARE_OPENGL, lightColor=[0, 0, 0], shadow=0)[4]
+        # raw = np.array(raw).reshape((CAMERA_HEIGHT, CAMERA_WIDTH, 1))
+        # raw = np.where(np.isin(raw, self.wall_ids), 1, np.where(raw > max(self.wall_ids), 4, raw))  # segment wall and another car
+
+        # gray image from rgba image
         raw = self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat, projectionMatrix=projMat,
-                                     renderer=self._p.ER_BULLET_HARDWARE_OPENGL, lightColor=[0, 0, 0], shadow=0)[4]
-        raw = np.array(raw).reshape((CAMERA_HEIGHT, CAMERA_WIDTH, 1))
-        raw = np.where(np.isin(raw, self.wall_ids), 1, np.where(raw > max(self.wall_ids), 4, raw))  # segment wall and another car
-        # raw = np.where(raw > 0, 1, raw)
-        # img_rgb = rgba2rgb(raw)
-        # img_gray = np.expand_dims(rgb2gray(img_rgb), -1)
+                                     renderer=self._p.ER_BULLET_HARDWARE_OPENGL, lightColor=[0, 0, 0], shadow=0)[2]
+        raw = np.array(raw).reshape((CAMERA_HEIGHT, CAMERA_WIDTH, 4))
+
+        raw = rgba2rgb(raw)
+        # np.save('./test1.npy', raw)
+        raw = np.expand_dims(rgb2gray(raw), -1)
+        # np.save('./test2.npy', raw)
 
         return raw
 
@@ -249,9 +282,7 @@ class Racecar:
 
     def applyAction(self, motorCommands):
 
-        # sp = self._p.readUserDebugParameter(self.speedParameter)
         targetVelocity = motorCommands[0] * self.speedMultiplier
-        # targetVelocity = sp*self.speedMultiplier
         self.speed = motorCommands[0]
 
         steeringAngle = motorCommands[1] * self.steeringMultiplier
