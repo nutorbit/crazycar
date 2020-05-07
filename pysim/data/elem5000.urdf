@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot name="ele5000">
   <material name="brown">
-    <color rgba="0.0 0.8 0.3 1" />
+    <color rgba="1.0 0.8 0.3 1" />
   </material>
   <link name="base_link">
     <visual>
