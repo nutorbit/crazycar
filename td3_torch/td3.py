@@ -10,12 +10,12 @@ from td3_torch.policies import ActorCritic, ActorCriticCNN
 
 from pysim.environment import CrazyCar, SingleControl, FrameStack
 
-from cpprb import PrioritizedReplayBuffer
 from cpprb import ReplayBuffer
 
 
 class TD3:
-    def __init__(self, observation_space, action_space, date,
+    def __init__(self, observation_space, action_space,
+                 date=None,
                  tau=0.005,
                  gamma=0.9,
                  target_noise=0.2,
@@ -41,23 +41,23 @@ class TD3:
         self.device = device
 
         # logger
-        self.logger = get_helper_logger('TD3', date)
-        self.logger.info("TD3 algorithm has started")
-        self.logger.info(f"tau: {str(tau)}")
-        self.logger.info(f"gamma: {str(gamma)}")
-        self.logger.info(f"target_noise: {str(target_noise)}")
-        self.logger.info(f"replay_size: {str(replay_size)}")
-        self.logger.info(f"noise_clip: {str(noise_clip)}")
-        self.logger.info(f"policy_delay: {str(policy_delay)}")
-        self.logger.info(f"actor_lr: {str(actor_lr)}")
-        self.logger.info(f"critic_lr: {str(critic_lr)}")
-        self.logger.info(f"device: {str(device)}")
+        if date is not None:
+            self.logger = get_helper_logger('TD3', date)
+            self.logger.info("TD3 algorithm has started")
+            self.logger.info(f"tau: {str(tau)}")
+            self.logger.info(f"gamma: {str(gamma)}")
+            self.logger.info(f"target_noise: {str(target_noise)}")
+            self.logger.info(f"replay_size: {str(replay_size)}")
+            self.logger.info(f"noise_clip: {str(noise_clip)}")
+            self.logger.info(f"policy_delay: {str(policy_delay)}")
+            self.logger.info(f"actor_lr: {str(actor_lr)}")
+            self.logger.info(f"critic_lr: {str(critic_lr)}")
+            self.logger.info(f"device: {str(device)}")
 
         self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
 
         rb_kwargs = get_default_rb_dict(observation_space.shape, action_space.shape, replay_size)
-        # self.replay_buffer = ReplayBuffer(**rb_kwargs)
-        self.replay_buffer = PrioritizedReplayBuffer(**rb_kwargs)
+        self.replay_buffer = ReplayBuffer(**rb_kwargs)
 
         # Freeze target network
         for p in self.ac.actor_target.parameters():
@@ -72,8 +72,17 @@ class TD3:
     def actor_loss(self, obs):
         return - self.ac.critic.q1_forward(obs, self.ac.actor(obs)).mean()
 
-    def critic_loss(self, obs, act, next_obs, rew, done, weights):
+    def critic_loss(self, obs, act, next_obs, rew, done):
+        td_error1, td_error2 = self.compute_td_error(obs, act, next_obs, rew, done)
 
+        loss_q1 = huber_loss(td_error1).mean()
+        loss_q2 = huber_loss(td_error2).mean()
+
+        loss_q = (loss_q1 + loss_q2).mean()
+
+        return loss_q
+
+    def compute_td_error(self, obs, act, next_obs, rew, done):
         with torch.no_grad():  # target
             pi_target = self.ac.actor_target(next_obs)
 
@@ -90,37 +99,20 @@ class TD3:
         td_error1 = current_q1 - target
         td_error2 = current_q2 - target
 
-        loss_q1 = (huber_loss(td_error1) * weights).mean()
-        loss_q2 = (huber_loss(td_error2) * weights).mean()
-
-        loss_q = (loss_q1 + loss_q2).mean()
-
-        return loss_q
-
-    def compute_td_error(self, obs, act, next_obs, rew, done):
-        with torch.no_grad():
-            target_q1, target_q2 = self.ac.critic_target(next_obs, self.ac.actor_target(next_obs))
-            target_q = torch.min(target_q1, target_q2)
-            target_q = rew + ((1 - done) * self.gamma * target_q)
-
-            current_q1, current_q2 = self.ac.critic(obs, act)
-
-            td_error1 = target_q - current_q1
-            td_error2 = target_q - current_q2
-
-        return torch.abs(td_error1) + torch.abs(td_error2)
+        return td_error1, td_error2
 
     def update_targets(self):
         self.ac.actor_target.soft_update(self.ac.actor, self.tau)
         self.ac.critic_target.soft_update(self.ac.critic, self.tau)
 
-    def update_critic(self, obs, act, next_obs, rew, done, weights):
+    def update_critic(self, obs, act, next_obs, rew, done):
         self.ac.critic_optimizer.zero_grad()
-        loss_critic = self.critic_loss(obs, act, next_obs, rew, done, weights)
+        loss_critic = self.critic_loss(obs, act, next_obs, rew, done)
         loss_critic.backward()
         self.ac.critic_optimizer.step()
 
-        self.logger.debug(f'Critic loss: {loss_critic}')
+        if self.logger is not None:
+            self.logger.debug(f'Critic loss: {loss_critic}')
 
         return loss_critic
 
@@ -130,7 +122,8 @@ class TD3:
         loss_actor.backward()
         self.ac.actor_optimizer.step()
 
-        self.logger.debug(f'Actor loss: {loss_actor}')
+        if self.logger is not None:
+            self.logger.debug(f'Actor loss: {loss_actor}')
 
         return loss_actor
 
@@ -144,15 +137,10 @@ class TD3:
         next_obs = torch.FloatTensor(batch['next_obs']).to(self.device)
         rew = torch.FloatTensor(batch['rew']).to(self.device)
         done = torch.FloatTensor(batch['done']).to(self.device)
-        weights = torch.FloatTensor(batch['weights']).to(self.device)
 
         # update critic
-        critic_loss = self.update_critic(obs, act, next_obs, rew, done, weights)
+        critic_loss = self.update_critic(obs, act, next_obs, rew, done)
         actor_loss = self.last_actor_loss  # restore value for save
-
-        # for priority replay
-        td_error = self.compute_td_error(obs, act, next_obs, rew, done).detach().cpu().numpy()
-        indexes = batch['indexes']
 
         # update actor & target
         if timer % self.policy_delay == 0:
@@ -161,9 +149,6 @@ class TD3:
             self.last_actor_loss = actor_loss
 
             self.update_targets()
-
-        # update priority
-        self.replay_buffer.update_priorities(indexes, np.abs(td_error) + 1e-6)
 
         return actor_loss, critic_loss
 
@@ -281,9 +266,10 @@ def run(steps_per_epoch=4000,
     logger_main.info(f'batch_size: {batch_size}')
     logger_main.info(f'seed: {seed}')
 
-    env = SingleControl(date=date)
+    env = CrazyCar(renders=True, date=date)
     env = FrameStack(env)
     logger_main.info(f'Environment: {str(env.__class__.__name__)}')
+    logger_main.info(f"-----------------")
 
     agent = TD3(
         observation_space=env.observation_space,
@@ -360,6 +346,9 @@ def run(steps_per_epoch=4000,
             logger.store('Steps/train', episode_steps)
             logger.store('N_Collision/train', n_collision)
             logger_main.info(f"End of episode at {t}")
+            logger_main.info(f"Reward: {episode_rew}")
+            logger_main.info(f"Step:s {episode_steps}")
+            logger_main.info(f"-----------------")
 
             episode_rew, episode_steps = 0, 0
 
@@ -384,6 +373,7 @@ def run(steps_per_epoch=4000,
             logger_main.info(f"Reward: {str(mean_rew)}")
             logger_main.info(f"Steps: {str(mean_steps)}")
             logger_main.info(f"N_Collision: {str(n_collision)}")
+            logger_main.info(f"-----------------")
 
             # save a model
             if best_to_save <= mean_rew:
