@@ -16,7 +16,9 @@ class SAC:
     """
     Ref: https://arxiv.org/pdf/1812.05905.pdf
     """
-    def __init__(self, obs_dim, action_space, date,
+    def __init__(self, observation_space, action_space,
+                 date=None,
+                 replay_size=int(1e6),
                  gamma=0.99,
                  tau=0.05,
                  lr=3e-4,
@@ -27,30 +29,34 @@ class SAC:
         self.gamma = gamma
         self.tau = tau
         self.alpha = alpha
-
         self.target_update_interval = target_update_interval
-
         self.device = device
+        self.logger = None
+
+        # experience replay
+        rb_kwargs = get_default_rb_dict(observation_space.shape, action_space.shape, replay_size)
+        self.rb = ReplayBuffer(**rb_kwargs)
 
         # logger
-        self.logger = get_helper_logger('SAC', date)
-        self.logger.info("SAC algorithm has started")
-        self.logger.info(f"gamma: {str(gamma)}")
-        self.logger.info(f"tau: {str(tau)}")
-        self.logger.info(f"alpha: {str(alpha)}")
-        self.logger.info(f"target_update_interval: {str(target_update_interval)}")
-        self.logger.info(f"device: {str(device)}")
+        if date is not None:
+            self.logger = get_helper_logger('SAC', date)
+            self.logger.info("SAC algorithm has started")
+            self.logger.info(f"gamma: {str(gamma)}")
+            self.logger.info(f"tau: {str(tau)}")
+            self.logger.info(f"alpha: {str(alpha)}")
+            self.logger.info(f"target_update_interval: {str(target_update_interval)}")
+            self.logger.info(f"device: {str(device)}")
 
         # critic
-        self.critic = CriticCNN(obs_dim=obs_dim, act_dim=action_space.shape[0]).to(self.device)
+        self.critic = CriticCNN(obs_dim=observation_space.shape[0], act_dim=action_space.shape[0]).to(self.device)
         self.critic_opt = Adam(self.critic.parameters(), lr=lr)
 
         # critic target
-        self.critic_target = CriticCNN(obs_dim=obs_dim, act_dim=action_space.shape[0]).to(self.device)
+        self.critic_target = CriticCNN(obs_dim=observation_space.shape[0], act_dim=action_space.shape[0]).to(self.device)
         self.critic_target.hard_update(self.critic)
 
         # actor
-        self.actor = ActorCNN(obs_dim=obs_dim, act_dim=action_space.shape[0], action_space=action_space).to(self.device)
+        self.actor = ActorCNN(obs_dim=observation_space.shape[0], act_dim=action_space.shape[0], action_space=action_space).to(self.device)
         self.actor_opt = Adam(self.actor.parameters(), lr=lr)
 
         self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
@@ -86,8 +92,9 @@ class SAC:
         loss1 = huber_loss(td_error1).mean()
         loss2 = huber_loss(td_error2).mean()
 
-        self.logger.debug(f'Critic loss1: {loss1}')
-        self.logger.debug(f'Critic loss2: {loss2}')
+        if self.logger is not None:
+            self.logger.debug(f'Critic loss1: {loss1}')
+            self.logger.debug(f'Critic loss2: {loss2}')
 
         return loss1, loss2
 
@@ -103,8 +110,9 @@ class SAC:
         # alpha loss
         alpha_loss = -(self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
 
-        self.logger.debug(f'Actor loss: {actor_loss}')
-        self.logger.debug(f'Alpha loss: {alpha_loss}')
+        if self.logger is not None:
+            self.logger.debug(f'Actor loss: {actor_loss}')
+            self.logger.debug(f'Alpha loss: {alpha_loss}')
 
         return actor_loss, alpha_loss
 
@@ -138,9 +146,9 @@ class SAC:
 
         return actor_loss, alpha_loss
 
-    def update_parameters(self, memory, batch_size, updates):
+    def update_parameters(self, batch_size, updates):
 
-        batch = memory.sample(batch_size)
+        batch = self.rb.sample(batch_size)
 
         # to tensor
         obs = torch.FloatTensor(batch['obs']).to(self.device)
@@ -166,7 +174,8 @@ class SAC:
         self.actor = actor
         self.critic = critic
 
-        self.logger.info('Weight loading')
+        if self.logger is not None:
+            self.logger.info('Weight loading')
 
 
 def eval(env, agent):
@@ -215,12 +224,13 @@ def run(batch_size=256,
     logger_main.info(f'steps_per_epochs: {str(steps_per_epochs)}')
     logger_main.info(f'seed: {str(seed)}')
 
-    env = CrazyCar(renders=False, date=date)
+    env = CrazyCar(renders=True, date=date, track_id=1)
     env = FrameStack(env)
     logger_main.info(f'Environment: {str(env.__class__.__name__)}')
+    logger_main.info(f"-----------------")
 
     agent = SAC(
-        obs_dim=env.observation_space.shape[0],
+        observation_space=env.observation_space,
         action_space=env.action_space,
         date=date,
         gamma=gamma,
@@ -229,10 +239,6 @@ def run(batch_size=256,
         alpha=alpha,
         target_update_interval=target_update_interval
     )
-
-    # define experience replay
-    rb_kwargs = get_default_rb_dict(env.observation_space.shape, env.action_space.shape, replay_size)
-    rb = ReplayBuffer(**rb_kwargs)
 
     logger = Logger(date)
 
@@ -277,8 +283,7 @@ def run(batch_size=256,
         episode_rew += rew
         episode_steps += 1
 
-        rb.add(obs=obs, act=act, next_obs=next_obs, rew=rew, done=done)
-        # td_error1, td_error2 = agent.compute_td_error(obs, act, next_obs, rew, done)
+        agent.rb.add(obs=obs, act=act, next_obs=next_obs, rew=rew, done=done)
 
         obs = next_obs
 
@@ -292,12 +297,15 @@ def run(batch_size=256,
             logger.store('Steps/train', episode_steps)
             logger.store('N_Collision/train', n_collision)
             logger_main.info(f"End of episode at {t}")
+            logger_main.info(f"Reward: {episode_rew}")
+            logger_main.info(f"Step:s {episode_steps}")
+            logger_main.info(f"-----------------")
 
             episode_rew, episode_steps = 0, 0
 
         # update nn
-        if rb.get_stored_size() > batch_size:
-            q1_loss, q2_loss, actor_loss, alpha_loss, alpha = agent.update_parameters(rb,  batch_size, updates)
+        if agent.rb.get_stored_size() > batch_size:
+            q1_loss, q2_loss, actor_loss, alpha_loss, alpha = agent.update_parameters(batch_size, updates)
 
             logger.store('Loss/Q1', q1_loss)
             logger.store('Loss/Q2', q2_loss)
@@ -320,6 +328,7 @@ def run(batch_size=256,
             logger_main.info(f"Reward: {str(mean_rew)}")
             logger_main.info(f"Steps: {str(mean_steps)}")
             logger_main.info(f"N_Collision: {str(n_collision)}")
+            logger_main.info(f"-----------------")
 
             # save a model
             if best_to_save <= mean_rew:
