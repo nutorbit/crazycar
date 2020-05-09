@@ -224,7 +224,7 @@ def run(batch_size=256,
     logger_main.info(f'steps_per_epochs: {str(steps_per_epochs)}')
     logger_main.info(f'seed: {str(seed)}')
 
-    env = CrazyCar(renders=True, date=date, track_id=1)
+    env = SingleControl(renders=True, date=date, track_id=2)
     env = FrameStack(env)
     logger_main.info(f'Environment: {str(env.__class__.__name__)}')
     logger_main.info(f"-----------------")

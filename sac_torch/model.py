@@ -30,7 +30,7 @@ class BaseModel(nn.Module):
 class Critic(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
-        sizes = [obs_dim + act_dim] + [256, 256, 256] + [1]
+        sizes = [obs_dim + act_dim] + [256, 256] + [1]
         self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU)
         self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU)
 
@@ -44,7 +44,7 @@ class Critic(BaseModel):
 class Actor(BaseModel):
     def __init__(self, obs_dim, act_dim, action_space=None):
         super().__init__(obs_dim, act_dim)
-        sizes = [obs_dim] + [256, 256, 256]
+        sizes = [obs_dim] + [256, 256]
         self.hidden = make_mlp(sizes, activation=nn.ReLU, output_activation=nn.ReLU)
         self.mean = nn.Linear(256, act_dim)
         self.log_std = nn.Linear(256, act_dim)

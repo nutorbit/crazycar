@@ -3,26 +3,23 @@ import torch
 import math
 import numpy as np
 
-from datetime import datetime
-
 from sac_torch.sac import SAC
 from pysim.environment import CrazyCar, SingleControl, MultiCar, FrameStack
 
 
 @click.command()
-@click.option('--path', default='./models/Mar_06_2020_122846/td3_284000.pth')
+@click.argument('path')
 def main(path):
-    date = datetime.now().strftime("%b_%d_%Y_%H%M%S")
-    env = CrazyCar(renders=True, date=date)
+    env = SingleControl(renders=True, track_id=2)
     env = FrameStack(env)
-    model = SAC(env.observation_space.shape[0], env.action_space, date)
+    model = SAC(env.observation_space, env.action_space)
 
     actor, critic = torch.load(path)
 
     model.load_model(actor, critic)
 
     while True:
-        obs = env.reset(random_position=False, newCarPos=[2.9 - 0.7/2, 1.1, math.pi/2])
+        obs = env.reset(random_position=False)
         done = False
         rews = []
         while not done:
@@ -33,8 +30,8 @@ def main(path):
             # print(np.unique(obs))
             rews.append(rew)
             # print(list(obs))
-            print("Reward:", rew)
-            print("Action", act)
+            # print("Reward:", rew)
+            # print("Action", act)
         print(np.sum(rews))
 
 
