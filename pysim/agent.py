@@ -118,13 +118,20 @@ class Racecar:
 
         # setup sensor
         for degree in self._dist_sensors:
+            from_ = [0, 0, 0]
+            to_   = [np.cos(math.radians(degree)) * self.rayRange, np.sin(math.radians(degree)) * self.rayRange, 0]
             self._sensor.append(
-                self._p.addUserDebugLine([0, 0, 0], [self.rayRange, -math.radians(degree), 0], self.rayHitColor,
+                self._p.addUserDebugLine(from_, to_, self.rayHitColor,
                                          parentObjectUniqueId=car, parentLinkIndex=4))
-            self.rayFrom.append([0, 0, 0])
-            self.rayTo.append([self.rayRange, -math.radians(degree), 0])
-
+            self.rayFrom.append(from_)
+            self.rayTo.append(to_)
+        # print(self.rayTo)
         # _ = self.getSensor()
+
+    def remove_sensor(self):
+        for uid in self._sensor:
+            # self._p.removeBody(uid)
+            self._p.removeUserDebugItem(uid)
 
     def getCoordinate(self):
         carpos, carorn = self._p.getBasePositionAndOrientation(self.racecarUniqueId)
@@ -254,7 +261,7 @@ class Racecar:
 
         # gray image from rgba image
         raw = self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat, projectionMatrix=projMat,
-                                     renderer=self._p.ER_BULLET_HARDWARE_OPENGL, lightColor=[0, 0, 0], shadow=0)[2]
+                                     renderer=self._p.ER_BULLET_HARDWARE_OPENGL)[2]
         raw = np.array(raw).reshape((CAMERA_HEIGHT, CAMERA_WIDTH, 4))
 
         raw = rgba2rgb(raw)
