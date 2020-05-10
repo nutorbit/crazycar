@@ -48,15 +48,15 @@ class SAC:
             self.logger.info(f"device: {str(device)}")
 
         # critic
-        self.critic = CriticCNN(obs_dim=observation_space.shape[0], act_dim=action_space.shape[0]).to(self.device)
+        self.critic = Critic(obs_dim=observation_space.shape[0], act_dim=action_space.shape[0]).to(self.device)
         self.critic_opt = Adam(self.critic.parameters(), lr=lr)
 
         # critic target
-        self.critic_target = CriticCNN(obs_dim=observation_space.shape[0], act_dim=action_space.shape[0]).to(self.device)
+        self.critic_target = Critic(obs_dim=observation_space.shape[0], act_dim=action_space.shape[0]).to(self.device)
         self.critic_target.hard_update(self.critic)
 
         # actor
-        self.actor = ActorCNN(obs_dim=observation_space.shape[0], act_dim=action_space.shape[0], action_space=action_space).to(self.device)
+        self.actor = Actor(obs_dim=observation_space.shape[0], act_dim=action_space.shape[0], action_space=action_space).to(self.device)
         self.actor_opt = Adam(self.actor.parameters(), lr=lr)
 
         self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()

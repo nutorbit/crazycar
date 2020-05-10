@@ -54,7 +54,7 @@ class TD3:
             self.logger.info(f"critic_lr: {str(critic_lr)}")
             self.logger.info(f"device: {str(device)}")
 
-        self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
+        self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
 
         rb_kwargs = get_default_rb_dict(observation_space.shape, action_space.shape, replay_size)
         self.replay_buffer = ReplayBuffer(**rb_kwargs)
@@ -231,17 +231,17 @@ def run(steps_per_epoch=4000,
         start_steps=10000,
         update_after=1000,
         n_steps=int(2e5),
-        update_every=20,
+        update_every=50,
         policy_delay=2,
         act_noise=0.1,
-        target_noise=0.02,
+        target_noise=0.2,
         noise_clip=0.5,
         tau=0.005,
-        gamma=0.9,
-        actor_lr=1e-3,
-        critic_lr=1e-3,
-        replay_size=100000,
-        batch_size=100,
+        gamma=0.98,
+        actor_lr=3e-4,
+        critic_lr=3e-4,
+        replay_size=int(1e6),
+        batch_size=256,
         seed=100,
         ):
 
@@ -266,7 +266,7 @@ def run(steps_per_epoch=4000,
     logger_main.info(f'batch_size: {batch_size}')
     logger_main.info(f'seed: {seed}')
 
-    env = CrazyCar(renders=True, date=date)
+    env = SingleControl(renders=True, date=date, track_id=2)
     env = FrameStack(env)
     logger_main.info(f'Environment: {str(env.__class__.__name__)}')
     logger_main.info(f"-----------------")
