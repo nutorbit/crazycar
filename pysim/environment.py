@@ -32,7 +32,6 @@ class CrazyCar(ABC):
 
         self._timeStep = 0.01
         self._actionRepeat = ACTION_REP
-        self._observation = []
         self._envStepCounter = 0
         self._renders = renders
         self._isDiscrete = DISCRETE_ACTION
@@ -49,13 +48,23 @@ class CrazyCar(ABC):
         else:
             self._p = bullet_client.BulletClient()
 
-        obs = self.reset()
+        if OBSERVATION_TYPE == 'sensor+image':
+            state, obs = self.reset([2.9 - 0.7/2, 1.1, math.pi/2])
+        else:
+            obs = self.reset([2.9 - 0.7/2, 1.1, math.pi/2])
 
         # define observation space
         observationDim = obs.shape
         observation_high = np.full(observationDim, 1)
         observation_low = np.zeros(observationDim)
         self.observation_space = spaces.Box(observation_low, observation_high, dtype=np.float32)
+
+        # define state space
+        if OBSERVATION_TYPE == 'sensor+image':
+            stateDim = state.shape
+            state_high = np.full(stateDim, 1)
+            state_low = np.zeros(stateDim)
+            self.state_space = spaces.Box(state_low, state_high, dtype=np.float32)
 
         # define action space
         if self._isDiscrete:
@@ -70,6 +79,10 @@ class CrazyCar(ABC):
             self.logger = get_helper_logger(self.__class__.__name__, date)
             self.logger.info(f'{str(self.__class__.__name__)}-Environment has created')
             self.logger.info(f'Reward function: {str(self._reward_function)}')
+
+            if hasattr(self, 'state_space'):
+                self.logger.info(f'State shape: {str(self.state_space.shape)}')
+
             self.logger.info(f'Observation shape: {str(self.observation_space.shape)}')
             self.logger.info(f'Action shape: {str(self.action_space.shape)}')
             self.logger.info(f'Track id: {str(self._track_id)}')
@@ -116,9 +129,11 @@ class CrazyCar(ABC):
                                       timeStep=self._timeStep, direction_field=self._direction_field, wall_ids=self.wall_ids)
 
         # get observation
-        self._observation = self._racecar.getObservation()
-
-        return np.array(self._observation)
+        if hasattr(self, 'state_space'):
+            state, obs = self._racecar.getObservation()
+            return state, obs
+        obs = self._racecar.getObservation()
+        return np.array(obs)
 
     def __del__(self):
         self._p = 0
@@ -140,14 +155,16 @@ class CrazyCar(ABC):
         for i in range(self._actionRepeat):
             self._p.stepSimulation()
 
-        self._observation = self._racecar.getObservation()
-
         self._envStepCounter += 1
 
         reward = self._reward()
         done = self._termination()
 
-        return np.array(self._observation), reward, done, {}
+        if hasattr(self, 'state_space'):
+            state, obs = self._racecar.getObservation()
+            return np.array(state), np.array(obs), reward, done, {}
+        obs = self._racecar.getObservation()
+        return np.array(obs), reward, done, {}
 
     def _termination(self):
         return self._envStepCounter > MAX_STEPS or self._terminate or self._racecar.atGoal
@@ -249,7 +266,7 @@ class MultiCar(CrazyCar):
     def _termination(self):
         return self._envStepCounter > MAX_STEPS or self._terminate or \
                (self._racecars[0].atGoal or self._racecars[1].atGoal) or \
-               self._racecars[0].nCollision > 100 and self._racecars[1].nCollision > 100
+               self._racecars[0].nCollision == 1 or self._racecars[1].nCollision == 1
 
     def step(self, action):
 
@@ -260,9 +277,6 @@ class MultiCar(CrazyCar):
 
             racecar.applyAction(realaction)
 
-            for i in range(self._actionRepeat):
-                self._p.stepSimulation()
-
             obs = racecar.getObservation()
             reward = self._reward(racecar, realaction, obs)
 
@@ -272,6 +286,9 @@ class MultiCar(CrazyCar):
 
             rewards.append(reward)
             obses.append(obs)
+
+        for i in range(self._actionRepeat):
+            self._p.stepSimulation()
 
         self._envStepCounter += 1
 
@@ -314,10 +331,27 @@ class FrameStack:
         self.frames = deque([], maxlen=k)
         self.logger = self.env.logger
 
+        if self.state_space is not None:
+            self.states = deque([], maxlen=k)
+
         if self.logger is not None:
             self.logger.info('Use Stack Frame environment')
+
+            if hasattr(self.env, 'state_space'):
+                self.logger.info(f'State shape: {str(self.state_space.shape)}')
+
             self.logger.info(f'New Observation shape: {str(self.observation_space.shape)}')
             self.logger.info(f'New Action shape: {str(self.action_space.shape)}')
+
+    @property
+    def state_space(self):
+        if hasattr(self.env, 'state_space'):
+            shape = self.env.state_space.shape
+            shape = (shape[0] * self.k, )
+            state_high = np.full(shape, 1)
+            state_low = np.zeros(shape)
+            return spaces.Box(state_low, state_high, dtype=np.float32)
+        return None
 
     @property
     def action_space(self):
@@ -326,7 +360,10 @@ class FrameStack:
     @property
     def observation_space(self):
         shape = self.env.observation_space.shape
-        shape = shape[:-1] + (self.k, )
+        if len(shape) != 1:  # image
+            shape = shape[:-1] + (self.k, )
+        else:  # sensor
+            shape = (shape[0] * self.k, )
         observation_high = np.full(shape, 1)
         observation_low = np.zeros(shape)
         return spaces.Box(observation_low, observation_high, dtype=np.float32)
@@ -336,15 +373,28 @@ class FrameStack:
         return self.env._reward_function
 
     def reset(self, *args, **kwargs):
-        obs = self.env.reset(*args, **kwargs)
+        if self.state_space is not None:
+            state, obs = self.env.reset(*args, **kwargs)
+        else:
+            obs = self.env.reset(*args, **kwargs)
         for _ in range(self.k):
             self.frames.append(obs)
+            if self.state_space is not None:
+                self.states.append(state)
+        if self.state_space is not None:
+            return self._get_state(), self._get_obs()
         return self._get_obs()
 
     def step(self, action):
-        obs, rew, done, info = self.env.step(action)
+        state, obs, rew, done, info = self.env.step(action)
         self.frames.append(obs)
+        if self.state_space is not None:
+            self.states.append(state)
+            return self._get_state(), self._get_obs(), rew, done, info
         return self._get_obs(), rew, done, info
+
+    def _get_state(self):
+        return np.concatenate(list(self.states), axis=-1)
 
     def _get_obs(self):
         return np.concatenate(list(self.frames), axis=-1)
@@ -354,16 +404,17 @@ class FrameStack:
 
 
 if __name__ == '__main__':
-    env = SingleControl(renders=True)
+    env = CrazyCar(renders=True, track_id=2)
     # env = FrameStack(env)
     # print(env.observation_space.shape)
     # env.reset(random_position=False, PosIndex=6)
-    # env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
+
     # obs = env.reset(random_position=False)
-    obs = env.reset([2.7, 1.2, math.pi / 2.0])
-    print(obs.shape)
+    state, obs = env.reset([2.5, 6, math.pi*2 / 2.0], random_position=False)
+    # env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
+    print(state.shape, obs.shape)
     # x - [2.1, 2.9]
     while 1:
-        # obs, rew, done, _ = env.step(0)
+        state, obs, rew, done, _ = env.step(np.array([0, 0]))
         # print(obs.shape)
         pass

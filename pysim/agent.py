@@ -219,16 +219,13 @@ class Racecar:
         observation = None
 
         if OBSERVATION_TYPE == 'image':
-            observation = self.getCameraImage()  # to gray scale
+            observation = self.getCameraImage()
         if OBSERVATION_TYPE == 'sensor':
-            # observation = np.concatenate([self.getSensor(), np.array([self.speed/self.speedMultiplier])]) # norm
-            # observation = self.getSensor()/7
-            # print(self.getSensor())
             observation = np.concatenate([self.getSensor() / self.rayRange, np.array([self.diffAngle() / math.pi]),
                                           np.array([self.speed])])  # norm
             # observation = np.concatenate([self.getSensor()/self.rayRange]) # norm
-        if OBSERVATION_TYPE == 'sensor+image':
-            observation = np.concatenate([self.getSensor() / self.rayRange, self.getCameraImage().flatten() / 255])
+        if OBSERVATION_TYPE == 'sensor+image':  # (state, observation)
+            observation = np.concatenate([self.getSensor() / self.rayRange, np.array([self.speed])]), self.getCameraImage()
 
         return observation
 
