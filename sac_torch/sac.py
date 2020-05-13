@@ -246,8 +246,6 @@ def run(batch_size=256,
     logger.save_hyperparameter(
         algorithm='SAC',
         agent=agent.actor.__class__.__name__,
-        observation_shape=env.observation_space.shape,
-        action_shape=env.action_space.shape,
         env=env.__class__.__name__,
         reward=env._reward_function,
         batch_size=batch_size,
