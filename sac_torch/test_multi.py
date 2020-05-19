@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 from sac_torch.sac import SAC
-from pysim.environment import CrazyCar, SingleControl, MultiCar
+from pysim.environment import CrazyCar, SingleControl, MultiCar, FrameStack
 
 
 @click.command()
@@ -12,7 +12,9 @@ from pysim.environment import CrazyCar, SingleControl, MultiCar
 @click.option('--path2', default='./models/Apr_07_2020_224827/td3_192000.pth')
 def main(path1, path2):
     env = MultiCar(renders=True)
-    env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
+    env = FrameStack(env)
+    # env.p.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0, cameraTargetPosition=[1.5, 3.3, 0])
+    print(env.observation_space.shape, env.action_space.shape)
     model1 = SAC(env.observation_space.shape[0], env.action_space)
     actor1, critic1 = torch.load(path1)
     model1.load_model(actor1, critic1)

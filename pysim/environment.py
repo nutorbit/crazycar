@@ -51,7 +51,7 @@ class CrazyCar(ABC):
         if OBSERVATION_TYPE == 'sensor+image':
             state, obs = self.reset([2.9 - 0.7/2, 1.1, math.pi/2])
         else:
-            obs = self.reset([2.9 - 0.7/2, 1.1, math.pi/2])
+            obs = self.reset()
 
         # define observation space
         observationDim = obs.shape
@@ -251,7 +251,7 @@ class MultiCar(CrazyCar):
         # 2 agent
         self._racecars = [
             agent.Racecar(self._p, self._origin, carPos, self._planeId, \
-                          timeStep=self._timeStep, direction_field=self._direction_field)
+                          timeStep=self._timeStep, direction_field=self._direction_field, wall_ids=self.wall_ids)
             for carPos in pos[0]
         ]
 
@@ -361,7 +361,8 @@ class FrameStack:
     def observation_space(self):
         shape = self.env.observation_space.shape
         if len(shape) != 1:  # image
-            shape = shape[:-1] + (self.k, )
+            print(shape[:-1])
+            shape = tuple(shape[:-1]) + (self.k, )
         else:  # sensor
             shape = (shape[0] * self.k, )
         observation_high = np.full(shape, 1)
@@ -386,7 +387,10 @@ class FrameStack:
         return self._get_obs()
 
     def step(self, action):
-        state, obs, rew, done, info = self.env.step(action)
+        if self.state_space is not None:
+            state, obs, rew, done, info = self.env.step(action)
+        else:
+            obs, rew, done, info = self.env.step(action)
         self.frames.append(obs)
         if self.state_space is not None:
             self.states.append(state)
