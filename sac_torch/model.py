@@ -27,20 +27,6 @@ class BaseModel(nn.Module):
         self.soft_update(other_network, tau=1.)
 
 
-class Critic(BaseModel):
-    def __init__(self, obs_dim, act_dim):
-        super().__init__(obs_dim, act_dim)
-        sizes = [obs_dim + act_dim] + [256, 256] + [1]
-        self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU)
-        self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU)
-
-        self.apply(weight_init)
-
-    def forward(self, obs, act):
-        concat = torch.cat([obs, act], dim=1)
-        return self.q1(concat), self.q2(concat)
-
-
 class Actor(BaseModel):
     def __init__(self, obs_dim, act_dim, action_space=None):
         super().__init__(obs_dim, act_dim)
@@ -104,6 +90,54 @@ class ActorCNN(Actor):
         return mean, log_std
 
 
+class ActorCombine(Actor):
+    def __init__(self, state_dim, obs_dim, act_dim, action_space=None):
+        super().__init__(obs_dim, act_dim, action_space)
+        self.cnn = ImpalaCNN(obs_dim)
+        sizes = [256 + state_dim, 256, 256]
+        self.hidden = make_mlp(sizes, activation=nn.ReLU, output_activation=nn.ReLU)
+
+        self.apply(weight_init)
+
+    def sample(self, state, obs):
+        mean, log_std = self.forward(state, obs)
+        std = log_std.exp()
+        normal = Normal(mean, std)
+
+        x_t = normal.rsample()
+        y_t = torch.tanh(x_t)
+        action = y_t * self.action_scale + self.action_bias
+        log_prob = normal.log_prob(x_t)
+
+        log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + 1e-6)
+        log_prob = log_prob.sum(1, keepdim=True)
+        mean = torch.tanh(mean) * self.action_scale + self.action_bias
+        return action, log_prob, mean
+
+    def forward(self, state, obs):
+        x_cnn = self.cnn(obs/255)
+        x = torch.cat([x_cnn, state], dim=1)
+        x = self.hidden(x)
+        mean = self.mean(x)
+        log_std = self.log_std(x)
+        log_std = torch.clamp(log_std, min=-20, max=2)
+        return mean, log_std
+
+
+class Critic(BaseModel):
+    def __init__(self, obs_dim, act_dim):
+        super().__init__(obs_dim, act_dim)
+        sizes = [obs_dim + act_dim] + [256, 256] + [1]
+        self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU)
+        self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU)
+
+        self.apply(weight_init)
+
+    def forward(self, obs, act):
+        concat = torch.cat([obs, act], dim=1)
+        return self.q1(concat), self.q2(concat)
+
+
 class CriticCNN(Critic):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
@@ -116,6 +150,24 @@ class CriticCNN(Critic):
 
     def forward(self, obs, act):
         x = self.cnn(obs/255).view((obs.shape[0], -1))  # flatten
+        concat = torch.cat([x, act], dim=1)
+
+        return self.q1(concat), self.q2(concat)
+
+
+class CriticCombine(Critic):
+    def __init__(self, state_dim, obs_dim, act_dim):
+        super().__init__(obs_dim, act_dim)
+        self.cnn = ImpalaCNN(obs_dim)
+        sizes = [256 + act_dim + state_dim] + [256, 256, 256] + [1]
+        self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU)
+        self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU)
+
+        self.apply(weight_init)
+
+    def forward(self, state, obs, act):
+        x_cnn = self.cnn(obs/255).view((obs.shape[0], -1))  # flatten
+        x = torch.cat([x_cnn, state], dim=1)
         concat = torch.cat([x, act], dim=1)
 
         return self.q1(concat), self.q2(concat)
