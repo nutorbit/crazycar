@@ -96,7 +96,7 @@ class SAC:
             self.logger.debug(f'Critic loss1: {loss1}')
             self.logger.debug(f'Critic loss2: {loss2}')
 
-        return loss1, loss2
+        return loss1 + loss2
 
     def actor_alpha_loss(self, obs):
 
@@ -117,19 +117,14 @@ class SAC:
         return actor_loss, alpha_loss
 
     def update_critic(self, obs, act, next_obs, rew, done):
-        loss1, loss2 = self.critic_loss(obs, act, next_obs, rew, done)
+        critic_loss = self.critic_loss(obs, act, next_obs, rew, done)
 
-        # update q1
+        # update critic
         self.critic_opt.zero_grad()
-        loss1.backward(retain_graph=True)
+        critic_loss.backward(retain_graph=True)
         self.critic_opt.step()
 
-        # update q2
-        self.critic_opt.zero_grad()
-        loss2.backward(retain_graph=True)
-        self.critic_opt.step()
-
-        return loss1, loss2
+        return critic_loss
 
     def update_actor_alpha(self, obs):
         actor_loss, alpha_loss = self.actor_alpha_loss(obs)
@@ -147,7 +142,6 @@ class SAC:
         return actor_loss, alpha_loss
 
     def update_parameters(self, batch_size, updates):
-
         batch = self.rb.sample(batch_size)
 
         # to tensor
@@ -158,7 +152,7 @@ class SAC:
         done = torch.FloatTensor(batch['done']).to(self.device)
 
         # update actor & critic & alpha
-        q1_loss, q2_loss = self.update_critic(obs, act, next_obs, rew, done)
+        critic_loss = self.update_critic(obs, act, next_obs, rew, done)
         actor_loss, alpha_loss = self.update_actor_alpha(obs)
 
         # apply alpha
@@ -168,7 +162,7 @@ class SAC:
         if updates % self.target_update_interval == 0:
             self.critic_target.soft_update(self.critic, self.tau)
 
-        return q1_loss, q2_loss, actor_loss, alpha_loss, self.alpha.clone()
+        return critic_loss, actor_loss, alpha_loss, self.alpha.clone()
 
     def load_model(self, actor, critic):
         self.actor = actor
@@ -303,10 +297,9 @@ def run(batch_size=256,
 
         # update nn
         if agent.rb.get_stored_size() > batch_size:
-            q1_loss, q2_loss, actor_loss, alpha_loss, alpha = agent.update_parameters(batch_size, updates)
+            critic_loss, actor_loss, alpha_loss, alpha = agent.update_parameters(batch_size, updates)
 
-            logger.store('Loss/Q1', q1_loss)
-            logger.store('Loss/Q2', q2_loss)
+            logger.store('Loss/Critic', critic_loss)
             logger.store('Loss/Actor', actor_loss)
             logger.store('Loss/Alpha', alpha_loss)
             logger.store('Param/Alpha', alpha)
