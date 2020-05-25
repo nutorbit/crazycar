@@ -54,7 +54,7 @@ class TD3:
             self.logger.info(f"critic_lr: {str(critic_lr)}")
             self.logger.info(f"device: {str(device)}")
 
-        self.ac = ActorCritic(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
+        self.ac = ActorCriticCNN(observation_space.shape[0], action_space.shape[0], actor_lr, critic_lr, device=device)
 
         rb_kwargs = get_default_rb_dict(observation_space.shape, action_space.shape, replay_size)
         self.replay_buffer = ReplayBuffer(**rb_kwargs)

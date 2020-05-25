@@ -42,7 +42,7 @@ class SAC:
         # logger
         if date is not None:
             self.logger = get_helper_logger('SAC', date)
-            self.logger.info("SAC algorithm has started")
+            self.logger.info("SAC combine algorithm has started")
             self.logger.info(f"gamma: {str(gamma)}")
             self.logger.info(f"tau: {str(tau)}")
             self.logger.info(f"alpha: {str(alpha)}")
@@ -236,7 +236,7 @@ def run(batch_size=256,
     logger_main.info(f'steps_per_epochs: {str(steps_per_epochs)}')
     logger_main.info(f'seed: {str(seed)}')
 
-    env = SingleControl(renders=True, date=date, track_id=1)
+    env = SingleControl(renders=True, date=date, track_id=2)
     env = FrameStack(env)
     logger_main.info(f'Environment: {str(env.__class__.__name__)}')
     logger_main.info(f"-----------------")

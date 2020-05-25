@@ -40,14 +40,12 @@ class ActorCNN(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
         self.cnn = ImpalaCNN(obs_dim)
-        self.fc = nn.Sequential(
-            nn.Linear(256, 128), nn.ReLU(),
-            nn.Linear(128, act_dim), nn.Tanh()
-        )
+        sizes = [256, 256, 256] + [act_dim]
+        self.hidden = make_mlp(sizes, activation=nn.ReLU, output_activation=nn.Tanh)
 
     def forward(self, x):
         x = self.cnn(x/255)
-        x = self.fc(x)
+        x = self.hidden(x)
         return x
 
 
@@ -71,15 +69,9 @@ class CriticCNN(BaseModel):
     def __init__(self, obs_dim, act_dim):
         super().__init__(obs_dim, act_dim)
         self.cnn = ImpalaCNN(obs_dim)
-        self.q1 = nn.Sequential(
-            nn.Linear(256 + act_dim, 64), nn.ReLU(),
-            nn.Linear(64, 1)
-        )
-
-        self.q2 = nn.Sequential(
-            nn.Linear(256 + act_dim, 64), nn.ReLU(),
-            nn.Linear(64, 1)
-        )
+        sizes = [256 + act_dim] + [256, 256, 256] + [1]
+        self.q1 = make_mlp(sizes=sizes, activation=nn.ReLU)
+        self.q2 = make_mlp(sizes=sizes, activation=nn.ReLU)
 
     def forward(self, obs, act):
 

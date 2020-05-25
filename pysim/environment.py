@@ -361,7 +361,6 @@ class FrameStack:
     def observation_space(self):
         shape = self.env.observation_space.shape
         if len(shape) != 1:  # image
-            print(shape[:-1])
             shape = tuple(shape[:-1]) + (self.k, )
         else:  # sensor
             shape = (shape[0] * self.k, )
