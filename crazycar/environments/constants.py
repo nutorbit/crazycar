@@ -1,0 +1,5 @@
+TIMESTEP_SIM = 0.01
+
+ORIGIN = [0, 0, 0]
+
+MAX_STEP = 2000

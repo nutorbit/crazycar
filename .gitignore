@@ -5,11 +5,6 @@
 .DS_Store
 __pycache__
 .ipynb_checkpoints/
-
-models/
-logs/
-logs*
-models*
-pybullet_robots-master*
 .vs/
-/save
+logs*
+backup/
