@@ -4,7 +4,7 @@ description = "Abseil Python Common Libraries, see https://github.com/abseil/abs
 name = "absl-py"
 optional = false
 python-versions = "*"
-version = "0.9.0"
+version = "0.10.0"
 
 [package.dependencies]
 six = "*"
@@ -39,14 +39,6 @@ version = "1.7"
 
 [package.dependencies]
 six = "*"
-
-[[package]]
-category = "main"
-description = "Python Box2D"
-name = "box2d-py"
-optional = false
-python-versions = "*"
-version = "2.3.8"
 
 [[package]]
 category = "main"
@@ -704,35 +696,6 @@ version = "1.1.0"
 
 [[package]]
 category = "main"
-description = "Tensors and Dynamic neural networks in Python with strong GPU acceleration"
-name = "torch"
-optional = false
-python-versions = "*"
-version = "1.2.0"
-
-[package.dependencies]
-future = "*"
-numpy = "*"
-
-[[package]]
-category = "main"
-description = "image and video datasets and models for torch deep learning"
-name = "torchvision"
-optional = false
-python-versions = "*"
-version = "0.4.0"
-
-[package.dependencies]
-numpy = "*"
-pillow = ">=4.1.1"
-six = "*"
-torch = "1.2.0"
-
-[package.extras]
-scipy = ["scipy"]
-
-[[package]]
-category = "main"
 description = "Fast, Extensible Progress Meter"
 name = "tqdm"
 optional = false
@@ -774,8 +737,8 @@ description = "A built-package format for Python"
 marker = "python_version >= \"3\""
 name = "wheel"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-version = "0.34.2"
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
+version = "0.35.1"
 
 [package.extras]
 test = ["pytest (>=3.0.0)", "pytest-cov"]
@@ -797,13 +760,14 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "e236b8197bd32620fa013760f9a3b6fd7951c87b21d9e11c0796633e8a7a069f"
+content-hash = "fde12531074f8b251caad0496ef1a2afde7cd7dba7a5378b8c900942f7a64397"
 lock-version = "1.0"
 python-versions = "^3.7"
 
 [metadata.files]
 absl-py = [
-    {file = "absl-py-0.9.0.tar.gz", hash = "sha256:75e737d6ce7723d9ff9b7aa1ba3233c34be62ef18d5859e706b8fdc828989830"},
+    {file = "absl-py-0.10.0.tar.gz", hash = "sha256:b20f504a7871a580be5268a18fbad48af4203df5d33dbc9272426cb806245a45"},
+    {file = "absl_py-0.10.0-py3-none-any.whl", hash = "sha256:ea07d7d437798bffc14f39fccec3909d251a1e76e233205ded72b71c267e0178"},
 ]
 astor = [
     {file = "astor-0.8.1-py2.py3-none-any.whl", hash = "sha256:070a54e890cefb5b3739d19f30f5a5ec840ffc9c50ffa7d23cc9fc1a38ebbfc5"},
@@ -824,15 +788,6 @@ blessings = [
     {file = "blessings-1.7-py2-none-any.whl", hash = "sha256:caad5211e7ba5afe04367cdd4cfc68fa886e2e08f6f35e76b7387d2109ccea6e"},
     {file = "blessings-1.7-py3-none-any.whl", hash = "sha256:b1fdd7e7a675295630f9ae71527a8ebc10bfefa236b3d6aa4932ee4462c17ba3"},
     {file = "blessings-1.7.tar.gz", hash = "sha256:98e5854d805f50a5b58ac2333411b0482516a8210f23f43308baeb58d77c157d"},
-]
-box2d-py = [
-    {file = "box2d-py-2.3.8.tar.gz", hash = "sha256:bdacfbbc56079bb317548efe49d3d5a86646885cc27f4a2ee97e4b2960921ab7"},
-    {file = "box2d_py-2.3.8-cp35-cp35m-macosx_10_6_intel.macosx_10_9_intel.macosx_10_9_x86_64.macosx_10_10_intel.macosx_10_10_x86_64.whl", hash = "sha256:9525d8b3259800d6ae02da4bb2a1d398baca36e128e62014b25c50dcfb3beed4"},
-    {file = "box2d_py-2.3.8-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:4e4c23f454bcf26d2cedf2d46e5f0651ad4ed518f0d21e14f228cab001ddbcae"},
-    {file = "box2d_py-2.3.8-cp36-cp36m-macosx_10_6_intel.macosx_10_9_intel.macosx_10_9_x86_64.macosx_10_10_intel.macosx_10_10_x86_64.whl", hash = "sha256:d4c37540b7b105c47fedb9c635bc0c57920ad6b36479f34f5fd0f73a7376b379"},
-    {file = "box2d_py-2.3.8-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:6c99c75ac75bc9fa98b9914678bff47afddeea2320e7d9956f0859714a8ed579"},
-    {file = "box2d_py-2.3.8-cp37-cp37m-macosx_10_6_intel.macosx_10_9_intel.macosx_10_9_x86_64.macosx_10_10_intel.macosx_10_10_x86_64.whl", hash = "sha256:50cef0925b12d01013dcbe0055ae765b765711b21a324a3eb400ff705a5cc9f6"},
-    {file = "box2d_py-2.3.8-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:e1c1e6b038575ba25dfd95dd3725ceb8602d8376c1e8968a86383982a15cd634"},
 ]
 cachetools = [
     {file = "cachetools-4.0.0-py3-none-any.whl", hash = "sha256:b304586d357c43221856be51d73387f93e2a961598a9b6b6670664746f3b6c6c"},
@@ -1410,28 +1365,6 @@ tensorflow-estimator = [
 termcolor = [
     {file = "termcolor-1.1.0.tar.gz", hash = "sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b"},
 ]
-torch = [
-    {file = "torch-1.2.0-cp27-cp27m-manylinux1_x86_64.whl", hash = "sha256:a8c21f82fd03b67927078ea917040478c3263753fe1906fc19d0f5f0c7d9aa10"},
-    {file = "torch-1.2.0-cp27-cp27mu-manylinux1_x86_64.whl", hash = "sha256:880a0c22692eaebbce808a5bf2255ab7d345ab43c40795be0a421c6250ba0fb4"},
-    {file = "torch-1.2.0-cp27-none-macosx_10_6_x86_64.whl", hash = "sha256:f63d489c54b4f170ce8335727bbb196ceb9acd0e7805477bbef8fabc914bc0f9"},
-    {file = "torch-1.2.0-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:661ad06b4616663149bd504e8c0271196d0386712e21a92619d95ba88138794a"},
-    {file = "torch-1.2.0-cp35-none-macosx_10_6_x86_64.whl", hash = "sha256:2ac8e58b069232f079bd289aa160366a9367ae1a4616a2c1007dceed19ff9bfa"},
-    {file = "torch-1.2.0-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:a13bf6f78a49d844b85c142b8cd62d2e1833a11ed21ea0bc6b1ac73d24c76415"},
-    {file = "torch-1.2.0-cp36-none-macosx_10_7_x86_64.whl", hash = "sha256:43a0e28c448ddeea65fb9e956bc743389592afac824095bdbc08e8a87364c639"},
-    {file = "torch-1.2.0-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:b87fd224a7de3bc01ce87eb947698797b4514e27115b0aa60a56991515dd9dd6"},
-    {file = "torch-1.2.0-cp37-none-macosx_10_7_x86_64.whl", hash = "sha256:0698d0a48014b9b8f36d93e69901eca2e7ec712cd2033908f7a77e7d86a4f0d7"},
-]
-torchvision = [
-    {file = "torchvision-0.4.0-cp27-cp27m-macosx_10_6_x86_64.whl", hash = "sha256:d8c2402704ce8ef8e87e4922160388c7ca010ef27700082014d6bd694cf1cc51"},
-    {file = "torchvision-0.4.0-cp27-cp27m-manylinux1_x86_64.whl", hash = "sha256:740b3718470aa4ec0b389df876eb25117df1952dd2e8105b7828a02aa5bce73b"},
-    {file = "torchvision-0.4.0-cp27-cp27mu-manylinux1_x86_64.whl", hash = "sha256:3a8e9403252fefdf6e8f9993ae111d28eb4ad1e73f696f03de485d7f77d88067"},
-    {file = "torchvision-0.4.0-cp35-cp35m-macosx_10_6_x86_64.whl", hash = "sha256:6fff5a31d50de3a59dcceda2a48de9df33a5f43357dc3e0da0ffbb97699aec52"},
-    {file = "torchvision-0.4.0-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:904ef213594672f2ed7fafa3ab010cbf2a4704a951a7bf221cf36b3d2e3acd62"},
-    {file = "torchvision-0.4.0-cp36-cp36m-macosx_10_7_x86_64.whl", hash = "sha256:afff8e987564192bc7f139d8b089541d4471ad6fc99e977e8bc8dbb4e0873041"},
-    {file = "torchvision-0.4.0-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:d7939f2ca401de3067a30b6f4dcef63d13d24a4cd1ddc2d3a9af3413ce658d03"},
-    {file = "torchvision-0.4.0-cp37-cp37m-macosx_10_7_x86_64.whl", hash = "sha256:e00de7571d83f968f5aea7a59e84e3262669acef0a077ce4bd705eca2df68167"},
-    {file = "torchvision-0.4.0-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:8114c33b736ee430496eef4fe03b25be8b939b2abd2a968558737bb9aed1928b"},
-]
 tqdm = [
     {file = "tqdm-4.42.1-py2.py3-none-any.whl", hash = "sha256:fe231261cfcbc6f4a99165455f8f6b9ef4e1032a6e29bccf168b4bf42012f09c"},
     {file = "tqdm-4.42.1.tar.gz", hash = "sha256:251ee8440dbda126b8dfa8a7c028eb3f13704898caaef7caa699b35e119301e2"},
@@ -1445,8 +1378,8 @@ werkzeug = [
     {file = "Werkzeug-0.16.1.tar.gz", hash = "sha256:b353856d37dec59d6511359f97f6a4b2468442e454bd1c98298ddce53cac1f04"},
 ]
 wheel = [
-    {file = "wheel-0.34.2-py2.py3-none-any.whl", hash = "sha256:df277cb51e61359aba502208d680f90c0493adec6f0e848af94948778aed386e"},
-    {file = "wheel-0.34.2.tar.gz", hash = "sha256:8788e9155fe14f54164c1b9eb0a319d98ef02c160725587ad60f14ddc57b6f96"},
+    {file = "wheel-0.35.1-py2.py3-none-any.whl", hash = "sha256:497add53525d16c173c2c1c733b8f655510e909ea78cc0e29d374243544b77a2"},
+    {file = "wheel-0.35.1.tar.gz", hash = "sha256:99a22d87add3f634ff917310a3d87e499f19e663413a52eb9232c447aa646c9f"},
 ]
 wincertstore = [
     {file = "wincertstore-0.2-py2.py3-none-any.whl", hash = "sha256:22d5eebb52df88a8d4014d5cf6d1b6c3a5d469e6c3b2e2854f3a003e48872356"},

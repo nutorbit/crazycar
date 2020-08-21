@@ -1,4 +1,4 @@
-import torch
+import tensorflow as tf
 
 from crazycar.algos.ddpg import DDPG
 
@@ -41,16 +41,14 @@ class TD3(DDPG):
             y(s, a) = r(s, a) + (1 - done) * gamma * Q'(s', a'); a' ~ u'(s') + noise
         """
 
-        with torch.no_grad():
-            # next action
-            next_act = self.actor_target(batch['next_obs'])
-            noise = torch.randn_like(next_act) * self.target_noise
-            noise = torch.clamp(noise, -self.noise_clip, self.noise_clip)
-            next_act = torch.clamp(next_act + noise, -1, 1)
+        # next action
+        next_act = self.actor_target(batch['next_obs'])
+        noise = self.get_noise(shape=next_act.shape)
+        next_act = tf.clip_by_value(next_act + noise, -1, 1)
 
-            q_target1, q_target2 = self.critic_target(batch['next_obs'], next_act)
-            q_target = torch.min(q_target1, q_target2)
-            y = batch['rew'] + (1 - batch['done']) * self.gamma * q_target
+        q_target1, q_target2 = self.critic_target(batch['next_obs'], next_act)
+        q_target = tf.minimum(q_target1, q_target2)
+        y = batch['rew'] + (1 - batch['done']) * self.gamma * tf.stop_gradient(q_target)
 
         q1, q2 = self.critic(batch['obs'], batch['act'])
 
@@ -58,3 +56,39 @@ class TD3(DDPG):
         loss2 = (y - q2).pow(2).mean()
 
         return loss1 + loss2
+
+    def get_noise(self, shape):
+        """
+        Random noise for exploration and prevent overestimate in Q
+
+        Args:
+            shape: shape of noise
+        """
+
+        noise = tf.random.normal(shape=shape)
+        noise = tf.clip_by_value(noise, -self.noise_clip, self.noise_clip)
+        return noise
+
+    def predict(self, obs, test=False):
+        act = self.actor(obs)
+        if not test:
+            noise = self.get_noise(shape=act.shape)
+            act = tf.clip_by_value(act + noise, -1, 1)
+        return act.numpy()
+
+
+if __name__ == "__main__":
+    from crazycar.encoder import Sensor, Image
+    from crazycar.utils import set_seed
+
+    from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_DEPT
+
+    set_seed()
+    agent = TD3(Sensor, 5)
+
+    tmp = {
+        "sensor": tf.ones((1, len(DISTANCE_SENSORS))),
+        "image": tf.ones((1, CAMERA_HEIGHT, CAMERA_WIDTH, CAMERA_DEPT))
+    }
+
+    print(agent.predict(tmp, test=True))

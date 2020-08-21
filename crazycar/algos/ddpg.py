@@ -1,14 +1,12 @@
-import torch
-import torch.nn as nn
+import tensorflow as tf
 
-from copy import deepcopy
-from torch.optim import Adam
+from tensorflow.keras import activations, optimizers
 
-from crazycar.utils import make_mlp, weight_init
-from crazycar.algos.model import BaseModel
+from crazycar.utils import make_mlp
+from crazycar.algos.base import BaseNetwork, BaseModel
 
 
-class Actor(BaseModel):
+class Actor(BaseNetwork):
     """
     Actor for DDPG
 
@@ -20,17 +18,16 @@ class Actor(BaseModel):
 
     def __init__(self, encoder, act_dim, hiddens=[256, 256]):
         super().__init__()
-        self.enc = deepcopy(encoder)
-        self.pi = make_mlp(sizes=[self.enc.out_size] + hiddens + [act_dim], activation=nn.ReLU)
-        self.apply(weight_init)
+        self.enc = encoder()
+        self.pi = make_mlp(sizes=[self.enc.out_size] + hiddens + [act_dim], activation=activations.relu)
 
-    def forward(self, obs):
+    def call(self, obs):
         x = self.enc(obs)
         x = self.pi(x)
         return x
 
 
-class Critic(BaseModel):
+class Critic(BaseNetwork):
     """
     Double Q for DDPG
 
@@ -42,18 +39,18 @@ class Critic(BaseModel):
 
     def __init__(self, encoder, act_dim, hiddens=[256, 256]):
         super().__init__()
-        self.enc = deepcopy(encoder)
-        self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=nn.ReLU)
-        self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=nn.ReLU)
-        self.apply(weight_init)
+        self.enc = encoder()
+        # print([self.enc.out_size + act_dim] + hiddens + [1])
+        self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
+        self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
 
-    def forward(self, obs, act):
+    def call(self, obs, act):
         x = self.enc(obs)
-        x = torch.cat([x, act], dim=1)
+        x = tf.concat([x, act], axis=1)
         return self.q1(x), self.q2(x)
 
 
-class DDPG:
+class DDPG(BaseModel):
     """
     Deep Deterministic Policy Gradient
 
@@ -67,8 +64,7 @@ class DDPG:
         hiddens: NO. units for each layers
     """
 
-    def __init__(self, encoder,
-                 act_dim,
+    def __init__(self, encoder, act_dim,
                  lr=1e-4,
                  gamma=0.9,
                  interval_target=2,
@@ -81,17 +77,17 @@ class DDPG:
 
         # define actor
         self.actor = Actor(encoder, act_dim, hiddens)
-        self.actor_target = deepcopy(self.actor)
+        self.actor_target = Actor(encoder, act_dim, hiddens)
         self.actor_target.hard_update(self.actor)
 
         # define critic
         self.critic = Critic(encoder, act_dim, hiddens)
-        self.critic_target = deepcopy(self.critic)
+        self.critic_target = Critic(encoder, act_dim, hiddens)
         self.critic_target.hard_update(self.critic)
 
         # define optimizer
-        self.actor_opt = Adam(self.actor.parameters(), lr=lr)
-        self.critic_opt = Adam(self.critic.parameters(), lr=lr)
+        self.actor_opt = optimizers.Adam(lr=lr)
+        self.critic_opt = optimizers.Adam(lr=lr)
 
     def actor_loss(self, batch):
         """
@@ -111,51 +107,31 @@ class DDPG:
             y(s, a) = r(s, a) + (1 - done) * gamma * Q'(s', a'); a' ~ u'(s')
         """
 
-        with torch.no_grad():
-            next_act = self.actor_target(batch['next_obs'])
-            q_target1, q_target2 = self.critic_target(batch['next_obs'], next_act)
-            q_target = torch.min(q_target1, q_target2)
-            y = batch['rew'] + (1 - batch['done']) * self.gamma * q_target
+        next_act = self.actor_target(batch['next_obs'])
+        q_target1, q_target2 = self.critic_target(batch['next_obs'], next_act)
+        q_target = tf.minimum(q_target1, q_target2)
+        y = batch['rew'] + (1 - batch['done']) * self.gamma * tf.stop_gradient(q_target)
 
         q1, q2 = self.critic(batch['obs'], batch['act'])
 
-        loss1 = (y - q1).pow(2).mean()
-        loss2 = (y - q2).pow(2).mean()
+        loss1 = tf.reduce_mean(tf.square(y - q1))
+        loss2 = tf.reduce_mean(tf.square(y - q2))
 
         return loss1 + loss2
 
-    def update_actor(self, batch):
-        loss = self.actor_loss(batch)
 
-        # backward
-        self.actor_opt.zero_grad()
-        loss.backward()
-        self.actor_opt.step()
-        return loss
+if __name__ == "__main__":
+    from crazycar.encoder import Sensor, Image
+    from crazycar.utils import set_seed
 
-    def update_critic(self, batch):
-        loss = self.critic_loss(batch)
+    from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_DEPT
 
-        # backward
-        self.critic_opt.zero_grad()
-        loss.backward()
-        self.critic_opt.step()
-        return loss
+    set_seed()
+    agent = DDPG(Sensor, 5)
 
-    def update_params(self, batch, i):
-        critic_loss = self.update_actor(batch)
-        actor_loss = self.update_actor(batch)
+    tmp = {
+        "sensor": tf.ones((1, len(DISTANCE_SENSORS))),
+        "image": tf.ones((1, CAMERA_HEIGHT, CAMERA_WIDTH, CAMERA_DEPT))
+    }
 
-        # update target network
-        if i % self.interval_target == 0:
-            self.actor_target.soft_update(self.actor, self.tau)
-            self.critic_target.soft_update(self.critic, self.tau)
-
-        return {
-            "actor_loss": actor_loss.detach(),
-            "critic_loss": critic_loss.detach()
-        }
-
-    def predict(self, obs):
-        act = self.actor(obs)
-        return act
+    print(agent.predict(tmp))

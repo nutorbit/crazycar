@@ -1,124 +1,111 @@
-import math
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import tensorflow as tf
 
-from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_HEIGHT
-from crazycar.utils import weight_init
+from tensorflow.keras import layers, activations
+
+from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_DEPT
 
 
-class Base(nn.Module):
-    """
-    Base class for encoder state
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, obs):
-        raise NotImplementedError
-
-
-class Sensor(Base):
+class Sensor(tf.keras.Model):
     """
     For sensor feature with 256 feature
     """
 
     def __init__(self):
         super().__init__()
-        self.encode = nn.Sequential(
-            nn.Linear(len(DISTANCE_SENSORS), 256), nn.ReLU()
-        )
+        self.encode = tf.keras.Sequential([
+            layers.Input(len(DISTANCE_SENSORS)),
+            layers.Dense(256, activation=activations.tanh)
+        ])
         self.out_size = 256
 
-    def forward(self, obs):
+    def call(self, obs):
         x = self.encode(obs['sensor'])
         return x
 
 
-class Image(Base):
+class Image(tf.keras.Model):
     """
     For image feature with 256 feature
     """
 
     def __init__(self):
         super().__init__()
-        self.encode = ImpalaCNN(CAMERA_HEIGHT)
+        self.encode = ImpalaCNN()
         self.out_size = 256
 
-    def forward(self, obs):
+    def call(self, obs):
         x = self.encode(obs['image'])
         return x
 
 
-class Combine(Base):
+class Combine(tf.keras.Model):
     """
     Use all feature with 512 feature
     """
 
     def __init__(self):
         super().__init__()
-        self.image_reps = ImpalaCNN(CAMERA_HEIGHT)
-        self.sensor_reps = nn.Sequential(
-            nn.Linear(len(DISTANCE_SENSORS), 256),
-            nn.ReLU()
-        )
+        self.image_reps = ImpalaCNN()
+        self.sensor_reps = tf.keras.Sequential([
+            layers.Input(len(DISTANCE_SENSORS)),
+            layers.Dense(256, activation=activations.tanh)
+        ])
         self.out_size = 512
 
-    def forward(self, obs):
+    def call(self, obs):
         image_reps = self.image_reps(obs['image'])
         sensor_reps = self.sensor_reps(obs['sensor'])
-        concat = torch.cat([image_reps, sensor_reps], dim=1)
+        concat = tf.concat([image_reps, sensor_reps], axis=1)
         return concat
 
 
-class ImpalaCNN(nn.Module):
+class ImpalaCNN(tf.keras.Model):
     """
     The CNN architecture used in the IMPALA paper.
     Ref: https://arxiv.org/abs/1802.01561
     """
 
-    def __init__(self, image_size, depth_in=4):
+    def __init__(self):
         super().__init__()
-        layers = []
+        l = [layers.Input((CAMERA_HEIGHT, CAMERA_WIDTH, CAMERA_DEPT))]
         for depth_out in [16, 32, 32]:
-            layers.extend([
-                nn.Conv2d(depth_in, depth_out, 3, padding=1),
-                nn.MaxPool2d(3, stride=2, padding=1),
+            l.extend([
+                layers.Conv2D(filters=depth_out, kernel_size=3, padding='same'),
+                layers.MaxPool2D(pool_size=3, strides=2, padding='same'),
                 ImpalaResidual(depth_out),
                 ImpalaResidual(depth_out),
             ])
-            depth_in = depth_out
-        self.conv_layers = nn.Sequential(*layers)
-        self.linear = nn.Linear(math.ceil(image_size / 8) ** 2 * depth_in, 256)
+        self.conv_layers = tf.keras.Sequential(l)
+        self.out = layers.Dense(256)
 
-        self.apply(weight_init)
-
-    def forward(self, x):
-        x = x.permute(0, 3, 1, 2).contiguous()
+    def call(self, x):
         x = self.conv_layers(x)
-        x = F.relu(x)
-        x = x.view(x.shape[0], -1)
-        x = self.linear(x)
-        x = F.relu(x)
+        x = tf.nn.relu(x)
+        x = tf.reshape(x, (x.shape[0], -1))
+        x = self.out(x)
+        x = tf.nn.relu(x)
         return x
 
 
-class ImpalaResidual(nn.Module):
+class ImpalaResidual(tf.keras.Model):
     """
     A residual block for an IMPALA CNN.
     """
 
-    def __init__(self, depth):
+    def __init__(self, dept):
         super().__init__()
-        self.conv1 = nn.Conv2d(depth, depth, 3, padding=1)
-        self.conv2 = nn.Conv2d(depth, depth, 3, padding=1)
+        self.conv1 = layers.Conv2D(filters=dept, kernel_size=3, padding='same')
+        self.conv2 = layers.Conv2D(filters=dept, kernel_size=3, padding='same')
 
-        self.apply(weight_init)
-
-    def forward(self, x):
-        out = F.relu(x)
+    def call(self, x):
+        out = tf.nn.relu(x)
         out = self.conv1(out)
-        out = F.relu(out)
+        out = tf.nn.relu(out)
         out = self.conv2(out)
         return out + x
+
+
+if __name__ == "__main__":
+    tmp = tf.ones((5, 10))
+    I = Combine()
+    print(I({"sensor": tf.ones((5, 10)), "image": tf.ones((5, 10, 10, 5))}))

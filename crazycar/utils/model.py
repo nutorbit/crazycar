@@ -1,10 +1,11 @@
 import random
-import torch
-import torch.nn as nn
+import tensorflow as tf
 import numpy as np
 
+from tensorflow.keras import layers
 
-def set_seed_everywhere(seed):
+
+def set_seed(seed=100):
     """
     Set global seed
 
@@ -12,32 +13,12 @@ def set_seed_everywhere(seed):
         seed: seed number
     """
 
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+    tf.random.set_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
 
-def weight_init(m):
-    """
-    delta-orthogonal init.
-    Ref: https://arxiv.org/pdf/1806.05393.pdf
-    """
-
-    if isinstance(m, nn.Linear):
-        nn.init.orthogonal_(m.weight.data)
-        m.bias.data.fill_(0.0)
-    elif isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-        assert m.weight.size(2) == m.weight.size(3)
-        m.weight.data.fill_(0.0)
-        m.bias.data.fill_(0.0)
-        mid = m.weight.size(2) // 2
-        gain = nn.init.calculate_gain('relu')
-        nn.init.orthogonal_(m.weight.data[:, :, mid, mid], gain)
-
-
-def make_mlp(sizes, activation, output_activation=nn.Identity):
+def make_mlp(sizes, activation, output_activation=None):
     """
     Create MLP
 
@@ -50,11 +31,11 @@ def make_mlp(sizes, activation, output_activation=nn.Identity):
         layer block
     """
 
-    layers = []
-    for j in range(len(sizes)-1):
-        if j < len(sizes)-2:
-            # layers += [nn.Linear(sizes[j], sizes[j+1]), nn.BatchNorm1d(sizes[j+1]), activation()]
-            layers += [nn.Linear(sizes[j], sizes[j + 1]), activation()]
-        else:  # output layer
-            layers += [nn.Linear(sizes[j], sizes[j+1]), output_activation()]
-    return nn.Sequential(*layers)
+    l = [layers.Input(sizes[0])]
+    for i in range(1, len(sizes)):
+        if i != len(sizes) - 1:
+            l.append(layers.Dense(sizes[i], activation=activation))
+        else:
+            l.append(layers.Dense(sizes[i], activation=output_activation))
+    return tf.keras.Sequential(l)
+
