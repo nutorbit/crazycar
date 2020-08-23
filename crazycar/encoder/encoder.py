@@ -13,7 +13,7 @@ class Sensor(tf.keras.Model):
     def __init__(self):
         super().__init__()
         self.encode = tf.keras.Sequential([
-            layers.Input(len(DISTANCE_SENSORS)),
+            layers.Input(len(DISTANCE_SENSORS) + 2),
             layers.Dense(256, activation=activations.tanh)
         ])
         self.out_size = 256

@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from crazycar.utils import Replay
+
 
 class BaseNetwork(tf.keras.Model):
     """
@@ -25,6 +27,9 @@ class BaseModel:
     """
     Base class for Actor-Critic algorithm
     """
+
+    def __init__(self, replay_size=int(1e5)):
+        self.rb = Replay(replay_size)
 
     def actor_loss(self, batch):
         raise NotImplementedError
@@ -54,8 +59,10 @@ class BaseModel:
 
         return loss.numpy()
 
-    def update_params(self, batch, i):
-        critic_loss = self.update_actor(batch)
+    def update_params(self, i):
+        batch = self.rb.sample()
+
+        critic_loss = self.update_critic(batch)
         actor_loss = self.update_actor(batch)
 
         # update target network

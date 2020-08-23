@@ -14,6 +14,7 @@ class TD3(DDPG):
         gamma: discount factor
         interval_target: number of iteration for update target network
         tau: polyak average
+        replay_size: buffer size
         hiddens: NO. units for each layers
         target_noise: noise in target network
         noise_clip: noise clip
@@ -25,11 +26,12 @@ class TD3(DDPG):
                  gamma=0.9,
                  interval_target=2,
                  tau=0.05,
+                 replay_size=int(1e5),
                  hiddens=[256, 256],
                  target_noise=0.1,
                  noise_clip=0.1):
 
-        super().__init__(encoder, act_dim, lr, gamma, interval_target, tau, hiddens)
+        super().__init__(encoder, act_dim, lr, gamma, interval_target, tau, replay_size, hiddens)
         self.target_noise = target_noise
         self.noise_clip = noise_clip
 

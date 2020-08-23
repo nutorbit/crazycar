@@ -79,16 +79,30 @@ class Replay:
 
         batch = {
             "obs": {
-                "image": np.concatenate([el["obs"]["image"] for el in data]) if "image" in data[0]["obs"] else None,
-                "sensor": np.concatenate([el["obs"]["sensor"] for el in data]) if "sensor" in data[0]["obs"] else None
+                "image": tf.convert_to_tensor(
+                    np.concatenate([el["obs"]["image"] for el in data]), dtype=tf.float32
+                ) if "image" in data[0]["obs"] else None,
+                "sensor": tf.convert_to_tensor(
+                    np.concatenate([el["obs"]["sensor"] for el in data]), dtype=tf.float32
+                ) if "sensor" in data[0]["obs"] else None
             },
-            "act": np.concatenate([np.expand_dims(el["act"], axis=0) for el in data]),
+            "act": tf.convert_to_tensor(
+                np.concatenate([np.expand_dims(el["act"], axis=0) for el in data]), dtype=tf.float32
+            ),
             "next_obs": {
-                "image": np.concatenate([el["next_obs"]["image"] for el in data]) if "image" in data[0]["obs"] else None,
-                "sensor": np.concatenate([el["next_obs"]["sensor"] for el in data]) if "sensor" in data[0]["obs"] else None
+                "image": tf.convert_to_tensor(
+                    np.concatenate([el["next_obs"]["image"] for el in data]), dtype=tf.float32
+                ) if "image" in data[0]["obs"] else None,
+                "sensor": tf.convert_to_tensor(
+                    np.concatenate([el["next_obs"]["sensor"] for el in data]), dtype=tf.float32
+                ) if "sensor" in data[0]["obs"] else None
             },
-            "rew": np.expand_dims(np.concatenate([el["rew"] for el in data]), axis=-1),
-            "done": np.expand_dims(np.concatenate([el["done"] for el in data]), axis=-1)
+            "rew": tf.convert_to_tensor(
+                np.expand_dims(np.concatenate([el["rew"] for el in data]), axis=-1), dtype=tf.float32
+            ),
+            "done": tf.convert_to_tensor(
+                np.expand_dims(np.concatenate([el["done"] for el in data]), axis=-1), dtype=tf.float32
+            )
         }
         return batch
 

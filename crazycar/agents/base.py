@@ -263,7 +263,7 @@ class BaseAgent:
         raw = np.expand_dims(rgb2gray(raw), -1)
         # np.save('./test2.npy', raw)
 
-        return [raw]
+        return np.array([raw])
 
     def _is_collision(self, part_id):
         """

@@ -20,7 +20,10 @@ class Actor(BaseNetwork):
     def __init__(self, encoder, act_dim, hiddens=[256, 256]):
         super().__init__()
         self.enc = encoder()
-        self.hidden = make_mlp(sizes=[self.enc.out_size] + hiddens, activation=activations.relu)
+        self.hidden = make_mlp(
+            sizes=[self.enc.out_size] + hiddens,
+            activation=activations.relu
+        )
         self.mean = layers.Dense(act_dim)
         self.log_std = layers.Dense(act_dim)
 
@@ -83,7 +86,10 @@ class SAC(BaseModel):
                  gamma=0.9,
                  interval_target=2,
                  tau=0.05,
+                 replay_size=int(1e5),
                  hiddens=[256, 256]):
+
+        super().__init__(replay_size)
 
         self.tau = tau
         self.gamma = gamma
@@ -163,8 +169,10 @@ class SAC(BaseModel):
 
         return loss.numpy()
 
-    def update_params(self, batch, i):
-        critic_loss = self.update_actor(batch)
+    def update_params(self, i):
+        batch = self.rb.sample()
+
+        critic_loss = self.update_critic(batch)
         actor_loss = self.update_actor(batch)
         alpha_loss = self.update_alpha(batch)
 

@@ -19,7 +19,15 @@ class Actor(BaseNetwork):
     def __init__(self, encoder, act_dim, hiddens=[256, 256]):
         super().__init__()
         self.enc = encoder()
-        self.pi = make_mlp(sizes=[self.enc.out_size] + hiddens + [act_dim], activation=activations.relu)
+        self.pi = make_mlp(
+            sizes=[self.enc.out_size] + hiddens + [act_dim],
+            activation=activations.relu,
+            output_activation=activations.tanh
+        )
+
+    @property
+    def trainable_variables(self):
+        return self.enc.trainable_variables + self.pi.trainable_variables
 
     def call(self, obs):
         x = self.enc(obs)
@@ -44,6 +52,10 @@ class Critic(BaseNetwork):
         self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
         self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
 
+    @property
+    def trainable_variables(self):
+        return self.enc.trainable_variables + self.q1.trainable_variables + self.q2.trainable_variables
+
     def call(self, obs, act):
         x = self.enc(obs)
         x = tf.concat([x, act], axis=1)
@@ -61,6 +73,7 @@ class DDPG(BaseModel):
         gamma: discount factor
         interval_target: number of iteration for update target network
         tau: polyak average
+        replay_size: buffer size
         hiddens: NO. units for each layers
     """
 
@@ -69,7 +82,10 @@ class DDPG(BaseModel):
                  gamma=0.9,
                  interval_target=2,
                  tau=0.05,
+                 replay_size=int(1e5),
                  hiddens=[256, 256]):
+
+        super().__init__(replay_size)
 
         self.tau = tau
         self.gamma = gamma
@@ -96,7 +112,7 @@ class DDPG(BaseModel):
 
         act = self.actor(batch['obs'])
         q1, q2 = self.critic(batch['obs'], act)
-        loss = -q1
+        loss = -tf.reduce_mean(q1)
         return loss
 
     def critic_loss(self, batch):
@@ -130,7 +146,7 @@ if __name__ == "__main__":
     agent = DDPG(Sensor, 5)
 
     tmp = {
-        "sensor": tf.ones((1, len(DISTANCE_SENSORS))),
+        "sensor": tf.ones((1, len(DISTANCE_SENSORS) + 2)),
         "image": tf.ones((1, CAMERA_HEIGHT, CAMERA_WIDTH, CAMERA_DEPT))
     }
 
