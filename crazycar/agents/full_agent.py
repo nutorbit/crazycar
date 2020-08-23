@@ -10,13 +10,13 @@ class Racecar(BaseAgent):
     def get_observation(self):
         observation = {
             "image": self.get_camera(),
-            "sensor": np.concatenate(
+            "sensor": np.expand_dims(np.concatenate(
                 [
-                    self.get_sensor() / self.rayRange,
+                    self.get_sensor(),
                     np.array([self.speed]),
-                    np.array([self.get_diff_angle() / np.pi])
+                    np.array([self.get_diff_angle()])
                 ]
-            )
+            ), axis=0)
         }
         return observation
 

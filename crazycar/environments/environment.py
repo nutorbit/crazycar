@@ -1,10 +1,10 @@
 import pybullet
 
+from pybullet_envs.bullet import bullet_client
+
 from crazycar.environments.maps import Map
 from crazycar.environments.constants import TIMESTEP_SIM, ORIGIN, MAX_STEP
 from crazycar.utils import timing
-
-from pybullet_envs.bullet import bullet_client
 
 
 class Environment:
@@ -111,7 +111,7 @@ class Environment:
             list (reward for each car)
         """
 
-        res = [car.get_reward() for car in self.cars]
+        res = [[car.get_reward()] for car in self.cars]
         return res
 
     def is_done(self):
@@ -122,7 +122,7 @@ class Environment:
             True or False
         """
 
-        return self.step_count > MAX_STEP
+        return [self.step_count > MAX_STEP]
 
     def get_info(self):
         """

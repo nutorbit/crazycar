@@ -1,10 +1,14 @@
 import math
 import numpy as np
 
-from absl import app
+from absl import app, logging
 
 from crazycar.environments import Environment
 from crazycar.agents import Racecar, ImageAgent, SensorAgent
+
+
+logging.set_verbosity(logging.INFO)
+logging.get_absl_handler().setFormatter(None)
 
 
 def main(args):
@@ -15,6 +19,7 @@ def main(args):
     env.insert_car(Racecar, [2.5, 2, math.pi * 2 / 2.0])
 
     env.reset()
+    logging.info("test")
 
     acts = np.array([[1, 0], [1, 0], [1, 0]]).reshape((3, 2))
 

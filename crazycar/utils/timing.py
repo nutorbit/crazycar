@@ -32,7 +32,7 @@ def timing(name, debug=False):
             # report
             # logging.info(f'{name}: Took: {ts-te} sec')
             if debug:
-                print(f'|{name}| Started in: {datetime.now()}, Took: {te-ts} sec')
+                logging.info(f'|{name}| Started in: {datetime.now()}, Took: {te-ts} sec')
             return res
         return wrap_f
     return wrap

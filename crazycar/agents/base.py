@@ -167,23 +167,25 @@ class BaseAgent:
 
         angleField = self.get_angle_field()
         _, _, yaw = self.get_coordinate()
+        diff = None
 
         if angleField == 0:
-            return abs(yaw - 0)
+            diff = abs(yaw - 0)
         if angleField == 45:
-            return abs(yaw - math.pi / 4)
+            diff = abs(yaw - math.pi / 4)
         if angleField == 90:
-            return abs(yaw - math.pi / 2)
+            diff = abs(yaw - math.pi / 2)
         if angleField == 135:
-            return abs(yaw - math.pi / 2 - math.pi / 4)
+            diff = abs(yaw - math.pi / 2 - math.pi / 4)
         if angleField == 180:
-            return abs(abs(yaw) - math.pi)
+            diff = abs(abs(yaw) - math.pi)
         if angleField == 225:
-            return abs(yaw + math.pi / 2 + math.pi / 4)
+            diff = abs(yaw + math.pi / 2 + math.pi / 4)
         if angleField == 270:
-            return abs(yaw + math.pi / 2)
+            diff = abs(yaw + math.pi / 2)
         if angleField == 315:
-            return abs(yaw + math.pi / 4)
+            diff = abs(yaw + math.pi / 4)
+        return diff / np.pi
 
     def get_sensor(self):
         """
@@ -219,7 +221,7 @@ class BaseAgent:
 
             obs.append(dist)
 
-        return np.array(obs)
+        return np.array(obs) / self.rayRange
 
     @timing('process_camera', debug=False)
     def get_camera(self):
@@ -261,7 +263,7 @@ class BaseAgent:
         raw = np.expand_dims(rgb2gray(raw), -1)
         # np.save('./test2.npy', raw)
 
-        return raw
+        return [raw]
 
     def _is_collision(self, part_id):
         """
