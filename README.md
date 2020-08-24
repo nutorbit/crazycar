@@ -11,7 +11,7 @@ $ pip install -r requirements.txt
 **training a model.**
 
 ```shell
-$ python -m crazycar.scripts.tranining --name NAME
+$ python -m crazycar.scripts.training --name NAME
 ```
 
 Where `NAME` is a name of the experiment. You can see more about flags with `--help`
