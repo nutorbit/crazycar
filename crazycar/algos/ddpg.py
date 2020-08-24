@@ -21,7 +21,7 @@ class Actor(BaseNetwork):
         self.enc = encoder()
         self.pi = make_mlp(
             sizes=[self.enc.out_size] + hiddens + [act_dim],
-            activation=activations.relu,
+            activation=activations.tanh,
             output_activation=activations.tanh
         )
 
@@ -49,8 +49,8 @@ class Critic(BaseNetwork):
         super().__init__()
         self.enc = encoder()
         # print([self.enc.out_size + act_dim] + hiddens + [1])
-        self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
-        self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
+        self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.tanh)
+        self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.tanh)
 
     @property
     def trainable_variables(self):
@@ -135,6 +135,10 @@ class DDPG(BaseModel):
 
         return loss1 + loss2
 
+    def write_metric(self, metric, step, idx):
+        tf.summary.scalar(f"loss/actor_loss_{idx}", metric['actor_loss'], step)
+        tf.summary.scalar(f"loss/critic_loss_{idx}", metric['critic_loss'], step)
+
 
 if __name__ == "__main__":
     from crazycar.encoder import Sensor, Image
@@ -143,11 +147,20 @@ if __name__ == "__main__":
     from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_DEPT
 
     set_seed()
-    agent = DDPG(Sensor, 5)
+    agent = DDPG(Image, 2)
 
     tmp = {
         "sensor": tf.ones((1, len(DISTANCE_SENSORS) + 2)),
         "image": tf.ones((1, CAMERA_HEIGHT, CAMERA_WIDTH, CAMERA_DEPT))
     }
 
-    print(agent.predict(tmp))
+    p1 = agent.actor(tmp)
+    p2 = agent.actor_target(tmp)
+    agent.actor_target.soft_update(agent.actor, 0.05)
+    print(p1)
+    print(p2)
+
+    print(len(agent.actor.trainable_variables))
+    print(len(agent.actor_target.trainable_variables))
+
+    # print(agent.predict(tmp))

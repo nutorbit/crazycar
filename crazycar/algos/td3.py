@@ -28,8 +28,8 @@ class TD3(DDPG):
                  tau=0.05,
                  replay_size=int(1e5),
                  hiddens=[256, 256],
-                 target_noise=0.1,
-                 noise_clip=0.1):
+                 target_noise=0.2,
+                 noise_clip=0.5):
 
         super().__init__(encoder, act_dim, lr, gamma, interval_target, tau, replay_size, hiddens)
         self.target_noise = target_noise
@@ -54,8 +54,8 @@ class TD3(DDPG):
 
         q1, q2 = self.critic(batch['obs'], batch['act'])
 
-        loss1 = (y - q1).pow(2).mean()
-        loss2 = (y - q2).pow(2).mean()
+        loss1 = tf.reduce_mean(tf.square(y - q1))
+        loss2 = tf.reduce_mean(tf.square(y - q2))
 
         return loss1 + loss2
 

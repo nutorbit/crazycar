@@ -7,6 +7,9 @@ from crazycar.utils import make_mlp
 from crazycar.algos.base import BaseModel, BaseNetwork
 
 
+EPS = 1e-16
+
+
 class Actor(BaseNetwork):
     """
     Actor for DDPG
@@ -27,6 +30,7 @@ class Actor(BaseNetwork):
         self.mean = layers.Dense(act_dim)
         self.log_std = layers.Dense(act_dim)
 
+    @tf.function
     def call(self, obs):
         x = self.enc(obs)
         x = self.hidden(x)
@@ -34,6 +38,7 @@ class Actor(BaseNetwork):
         log_std = self.log_std(x)
         return mean, log_std
 
+    @tf.function
     def sample(self, obs):
         mean, log_std = self(obs)
         std = tf.exp(log_std)
@@ -45,7 +50,7 @@ class Actor(BaseNetwork):
 
         # calculate log prob
         log_prob = dist.log_prob(action_sample)
-        log_prob -= tf.reduce_sum(tf.math.log(1 - action**2 + 1e-6), axis=1, keepdims=True)
+        log_prob -= tf.reduce_sum(tf.math.log(1 - action**2 + EPS), axis=1, keepdims=True)
 
         return action, log_prob
 
@@ -67,6 +72,7 @@ class Critic(BaseNetwork):
         self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
         self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
 
+    @tf.function
     def call(self, obs, act):
         x = self.enc(obs)
         x = tf.concat([x, act], axis=1)
@@ -106,7 +112,7 @@ class SAC(BaseModel):
         self.critic_target.hard_update(self.critic)
 
         # define alpha
-        self.alpha = tf.Variable(.0, dtype=tf.float32)
+        self.log_alpha = tf.Variable(.0, dtype=tf.float32)
         self.target_entropy = -tf.constant(act_dim, dtype=tf.float32)
 
         # define optimizer
@@ -114,6 +120,7 @@ class SAC(BaseModel):
         self.critic_opt = optimizers.Adam(lr=lr)
         self.alpha_opt = optimizers.Adam(lr=lr)
 
+    @tf.function
     def actor_loss(self, batch):
         """
         L(s) = -E[Q(s, a)| a~u(s)]
@@ -124,10 +131,11 @@ class SAC(BaseModel):
 
         act, log_prob = self.actor.sample(batch['obs'])
         q1, q2 = self.critic(batch['obs'], act)
-        q = tf.minimum(q1, q2) - self.alpha * log_prob
-        loss = -q
+        q = tf.minimum(q1, q2) - tf.exp(self.log_alpha) * log_prob
+        loss = -tf.reduce_mean(q)
         return loss
 
+    @tf.function
     def critic_loss(self, batch):
         """
         L(s, a) = (y - Q(s,a))^2
@@ -139,7 +147,7 @@ class SAC(BaseModel):
 
         next_act, next_log_prob = self.actor_target.sample(batch['obs'])
         q_target1, q_target2 = self.critic_target(batch['next_obs'], next_act)
-        q_target = tf.minimum(q_target1, q_target2) - self.alpha * next_log_prob
+        q_target = tf.minimum(q_target1, q_target2) - tf.exp(self.log_alpha) * next_log_prob
         y = batch['rew'] + (1 - batch['done']) * self.gamma * tf.stop_gradient(q_target)
 
         q1, q2 = self.critic(batch['obs'], batch['act'])
@@ -149,28 +157,30 @@ class SAC(BaseModel):
 
         return loss1 + loss2
 
+    @tf.function
     def alpha_loss(self, batch):
         """
         L = -(alpha * log_prob + target_entropy)
         """
 
         act, log_prob = self.actor.sample(batch['obs'])
-        loss = -tf.reduce_mean(self.alpha * (log_prob + self.target_entropy))
+        loss = -tf.reduce_mean(self.log_alpha * (log_prob + self.target_entropy))
         return loss
 
+    @tf.function
     def update_alpha(self, batch):
-        with tf.device("/gpu:0"):
+        with tf.device('/device:GPU:0'):
             with tf.GradientTape() as tape:
                 loss = self.alpha_loss(batch)
 
             # Optimize the alpha
-            grads = tape.gradient(loss, [self.alpha])
-            self.alpha_opt.apply_gradients(zip(grads, [self.alpha]))
+            grads = tape.gradient(loss, [self.log_alpha])
+            self.alpha_opt.apply_gradients(zip(grads, [self.log_alpha]))
 
-        return loss.numpy()
+        return loss
 
-    def update_params(self, i):
-        batch = self.rb.sample()
+    def update_params(self, i, batch_size=256):
+        batch = self.rb.sample(batch_size)
 
         critic_loss = self.update_critic(batch)
         actor_loss = self.update_actor(batch)
@@ -182,10 +192,17 @@ class SAC(BaseModel):
             self.critic_target.soft_update(self.critic, self.tau)
 
         return {
-            "actor_loss": actor_loss,
-            "critic_loss": critic_loss,
-            "alpha_loss": alpha_loss
+            "actor_loss": actor_loss.numpy(),
+            "critic_loss": critic_loss.numpy(),
+            "alpha_loss": alpha_loss.numpy(),
+            "alpha": tf.exp(self.log_alpha).numpy()
         }
+
+    def write_metric(self, metric, step, idx):
+        tf.summary.scalar(f"loss/actor_loss_{idx}", metric['actor_loss'], step)
+        tf.summary.scalar(f"loss/critic_loss_{idx}", metric['critic_loss'], step)
+        tf.summary.scalar(f"loss/alpha_loss_{idx}", metric['alpha_loss'], step)
+        tf.summary.scalar(f"track/alpha_{idx}", metric['alpha'], step)
 
     def predict(self, obs):
         act, _ = self.actor.sample(obs)

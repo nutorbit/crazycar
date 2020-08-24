@@ -107,7 +107,9 @@ class Replay:
         return batch
 
     def sample(self, size=256):
-        idx = np.random.randint(0, len(self.data), size=size)
+        idx = list(range(len(self.data)))
+        np.random.shuffle(idx)
+        idx = idx[:size]
         tmp = np.array(self.data)
         return self.process(tmp[idx])
 

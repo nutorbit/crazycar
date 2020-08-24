@@ -122,7 +122,7 @@ class Environment:
             True or False
         """
 
-        return [self.step_count > MAX_STEP]
+        return [self.step_count > MAX_STEP or any([car.nCollision > 0 for car in self.cars])]
 
     def get_info(self):
         """
@@ -134,7 +134,7 @@ class Environment:
 
         return {}
 
-    @timing('environment_step', debug=True)
+    @timing('environment_step', debug=False)
     def step(self, acts):
         """
         apply action to step environment
