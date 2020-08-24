@@ -11,20 +11,12 @@ $ pip install -r requirements.txt
 **training a model.**
 
 ```shell
-# SAC
-$ python -m sac_torch.sac
-
-# TD3
-$ python -m td3_torch.td3
+$ python -m crazycar.scripts.tranining --name NAME
 ```
+
+Where `NAME` is a name of the experiment. You can see more about flags with `--help`
 
 **testing a model.**
 
-```shell
-# SAC
-$ python -m sac_torch.test path
-
-# TD3
-$ python -m td3_torch.test path
-```
+Incoming...
 
