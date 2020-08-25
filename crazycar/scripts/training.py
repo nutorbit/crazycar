@@ -8,31 +8,40 @@ from crazycar.environments import Environment
 from crazycar.agents import ImageAgent, SensorAgent
 from crazycar.algos import TD3, SAC
 from crazycar.encoder import Image, Sensor
-from crazycar.utils import set_seed
+from crazycar.utils import evaluation, initial
 
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer("n_episode", 100, "number of episode")
-flags.DEFINE_integer("start_steps", 1000, "number of step for random action")
+flags.DEFINE_integer("n_steps", int(1e6), "number of steps for training")
+flags.DEFINE_integer("start_steps", 1000, "number of steps for random action")
 flags.DEFINE_integer("batch_size", 256, "batch size")
+flags.DEFINE_integer("eval_steps", int(1e3), "number of steps for evaluation")
 flags.DEFINE_string("name", None, "experiment name for logging")
-
 flags.mark_flag_as_required("name")
 
 
 def main(_):
-    set_seed()
+
+    # initial necessary
+    initial()
+
+    # define environment
     env = Environment(map_id=2)
-    agents = [SensorAgent]
-    positions = [[2.9 - 0.7 / 2, 1.1, math.pi / 2]]
+    agents = [SensorAgent, SensorAgent]
+    positions = [[2.9 - 0.7 / 2, 1.1, math.pi / 2], [2.9 - 0.7 / 2, 4.1, math.pi / 2]]
     for agent, pos in zip(agents, positions):
         env.insert_car(agent, pos)
 
-    models = [SAC(Sensor, 2)]
-    writer = tf.summary.create_file_writer(f'./logs/{FLAGS.name}/')
+    # define models
+    models = [SAC(Sensor, 2), TD3(Sensor, 2)]
+    writers = [
+        tf.summary.create_file_writer(f'./logs/{FLAGS.name}/{model.__class__.__name__}-{idx}')
+        for idx, model in enumerate(models)
+    ]
+
     step = 0
 
-    for _ in range(FLAGS.n_episode):
+    while step < FLAGS.n_steps:
         obs = env.reset()
         done = False
 
@@ -49,7 +58,6 @@ def main(_):
 
             # apply action
             next_obs, rew, done, info = env.step(acts)
-            print(acts, rew)
 
             # save replay
             for idx in range(len(models)):
@@ -63,12 +71,26 @@ def main(_):
 
             # update params
             if step > FLAGS.batch_size:
-                for idx, model in enumerate(models, start=1):
+                for idx, model in enumerate(models):
                     metric = model.update_params(step, FLAGS.batch_size)
 
                     # write tensorboard
-                    with writer.as_default():
-                        model.write_metric(metric, step, idx)
+                    with writers[idx].as_default():
+                        model.write_metric(metric, step)
+
+            # evaluation
+            if step % FLAGS.eval_steps == 0:
+                mean_rew, mean_step = evaluation(env, models)
+                print(f"|Evaluation at {step:08d}| Mean reward: {str(mean_rew)}, Mean step: {str(mean_step)}")
+
+                for idx, model in enumerate(models):
+                    # save model
+                    tf.saved_model.save(model.actor, f"./models/{FLAGS.name}/{model.__class__.__name__}-{idx}")
+
+                    # addition metric
+                    with writers[idx].as_default():
+                        tf.summary.scalar("track/mean_reward", mean_rew[idx], step)
+                        tf.summary.scalar("track/mean_step", mean_step, step)
 
             # to next state
             step += 1
@@ -78,4 +100,3 @@ def main(_):
 
 if __name__ == "__main__":
     app.run(main)
-

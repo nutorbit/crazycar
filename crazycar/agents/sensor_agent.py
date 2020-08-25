@@ -28,8 +28,8 @@ class SensorAgent(BaseAgent):
             reward = -50
             self.nCollision += 1
 
-        if math.pi - math.pi / 4 <= diff_angle * math.pi <= math.pi + math.pi / 4:
-            reward = -50
-            self.nCollision += 1
+        # if math.pi - math.pi / 4 <= diff_angle * math.pi <= math.pi + math.pi / 4:
+        #     reward = -50
+        #     self.nCollision += 1
 
         return reward

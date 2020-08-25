@@ -18,6 +18,7 @@ class Sensor(tf.keras.Model):
         ])
         self.out_size = 256
 
+    @tf.function
     def call(self, obs):
         x = self.encode(obs['sensor'])
         return x
@@ -33,6 +34,7 @@ class Image(tf.keras.Model):
         self.encode = ImpalaCNN()
         self.out_size = 256
 
+    @tf.function
     def call(self, obs):
         x = self.encode(obs['image'])
         return x
@@ -52,6 +54,7 @@ class Combine(tf.keras.Model):
         ])
         self.out_size = 512
 
+    @tf.function
     def call(self, obs):
         image_reps = self.image_reps(obs['image'])
         sensor_reps = self.sensor_reps(obs['sensor'])
@@ -78,6 +81,7 @@ class ImpalaCNN(tf.keras.Model):
         self.conv_layers = tf.keras.Sequential(l)
         self.out = layers.Dense(256)
 
+    @tf.function
     def call(self, x):
         x = self.conv_layers(x)
         x = tf.nn.relu(x)
@@ -97,6 +101,7 @@ class ImpalaResidual(tf.keras.Model):
         self.conv1 = layers.Conv2D(filters=dept, kernel_size=3, padding='same')
         self.conv2 = layers.Conv2D(filters=dept, kernel_size=3, padding='same')
 
+    @tf.function
     def call(self, x):
         out = tf.nn.relu(x)
         out = self.conv1(out)

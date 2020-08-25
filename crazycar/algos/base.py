@@ -12,7 +12,7 @@ class BaseNetwork(tf.keras.Model):
     def __init__(self):
         super().__init__()
 
-    # @tf.function
+    @tf.function
     def soft_update(self, other_network, tau):
         other_variables = other_network.trainable_variables
         current_variables = self.trainable_variables
@@ -34,7 +34,7 @@ class BaseModel:
     def __init__(self, replay_size=int(1e5)):
         self.rb = Replay(replay_size)
 
-    def write_metric(self):
+    def write_metric(self, metric, step):
         raise NotImplementedError
 
     def actor_loss(self, batch):
@@ -43,8 +43,9 @@ class BaseModel:
     def critic_loss(self, batch):
         raise NotImplementedError
 
+    @tf.function
     def update_actor(self, batch):
-        with tf.device('/device:GPU:0'):
+        with tf.device('/GPU:0' if tf.test.is_gpu_available() else '/CPU:0'):
             with tf.GradientTape() as tape:
                 loss = self.actor_loss(batch)
 
@@ -54,8 +55,9 @@ class BaseModel:
 
         return loss
 
+    @tf.function
     def update_critic(self, batch):
-        with tf.device('/device:GPU:0'):
+        with tf.device('/GPU:0' if tf.test.is_gpu_available() else '/CPU:0'):
             with tf.GradientTape() as tape:
                 loss = self.critic_loss(batch)
 

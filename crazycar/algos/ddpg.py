@@ -29,6 +29,7 @@ class Actor(BaseNetwork):
     def trainable_variables(self):
         return self.enc.trainable_variables + self.pi.trainable_variables
 
+    @tf.function
     def call(self, obs):
         x = self.enc(obs)
         x = self.pi(x)
@@ -56,6 +57,7 @@ class Critic(BaseNetwork):
     def trainable_variables(self):
         return self.enc.trainable_variables + self.q1.trainable_variables + self.q2.trainable_variables
 
+    @tf.function
     def call(self, obs, act):
         x = self.enc(obs)
         x = tf.concat([x, act], axis=1)
@@ -105,6 +107,7 @@ class DDPG(BaseModel):
         self.actor_opt = optimizers.Adam(lr=lr)
         self.critic_opt = optimizers.Adam(lr=lr)
 
+    @tf.function
     def actor_loss(self, batch):
         """
         L(s) = -E[Q(s, a)| a~u(s)]
@@ -115,6 +118,7 @@ class DDPG(BaseModel):
         loss = -tf.reduce_mean(q1)
         return loss
 
+    @tf.function
     def critic_loss(self, batch):
         """
         L(s, a) = (y - Q(s,a))^2
@@ -135,9 +139,9 @@ class DDPG(BaseModel):
 
         return loss1 + loss2
 
-    def write_metric(self, metric, step, idx):
-        tf.summary.scalar(f"loss/actor_loss_{idx}", metric['actor_loss'], step)
-        tf.summary.scalar(f"loss/critic_loss_{idx}", metric['critic_loss'], step)
+    def write_metric(self, metric, step):
+        tf.summary.scalar("loss/actor_loss", metric['actor_loss'], step)
+        tf.summary.scalar("loss/critic_loss", metric['critic_loss'], step)
 
 
 if __name__ == "__main__":

@@ -35,6 +35,7 @@ class TD3(DDPG):
         self.target_noise = target_noise
         self.noise_clip = noise_clip
 
+    @tf.function
     def critic_loss(self, batch):
         """
         L(s, a) = (y - Q(s,a))^2
@@ -44,6 +45,7 @@ class TD3(DDPG):
         """
 
         # next action
+        print(batch['next_obs'])
         next_act = self.actor_target(batch['next_obs'])
         noise = self.get_noise(shape=next_act.shape)
         next_act = tf.clip_by_value(next_act + noise, -1, 1)

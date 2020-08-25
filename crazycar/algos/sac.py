@@ -25,7 +25,7 @@ class Actor(BaseNetwork):
         self.enc = encoder()
         self.hidden = make_mlp(
             sizes=[self.enc.out_size] + hiddens,
-            activation=activations.relu
+            activation=activations.tanh
         )
         self.mean = layers.Dense(act_dim)
         self.log_std = layers.Dense(act_dim)
@@ -69,8 +69,8 @@ class Critic(BaseNetwork):
         super().__init__()
         self.enc = encoder()
         # print([self.enc.out_size + act_dim] + hiddens + [1])
-        self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
-        self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.relu)
+        self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.tanh)
+        self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.tanh)
 
     @tf.function
     def call(self, obs, act):
@@ -169,7 +169,7 @@ class SAC(BaseModel):
 
     @tf.function
     def update_alpha(self, batch):
-        with tf.device('/device:GPU:0'):
+        with tf.device('/GPU:0' if tf.test.is_gpu_available() else '/CPU:0'):
             with tf.GradientTape() as tape:
                 loss = self.alpha_loss(batch)
 
@@ -198,11 +198,11 @@ class SAC(BaseModel):
             "alpha": tf.exp(self.log_alpha).numpy()
         }
 
-    def write_metric(self, metric, step, idx):
-        tf.summary.scalar(f"loss/actor_loss_{idx}", metric['actor_loss'], step)
-        tf.summary.scalar(f"loss/critic_loss_{idx}", metric['critic_loss'], step)
-        tf.summary.scalar(f"loss/alpha_loss_{idx}", metric['alpha_loss'], step)
-        tf.summary.scalar(f"track/alpha_{idx}", metric['alpha'], step)
+    def write_metric(self, metric, step):
+        tf.summary.scalar("loss/actor_loss", metric['actor_loss'], step)
+        tf.summary.scalar("loss/critic_loss", metric['critic_loss'], step)
+        tf.summary.scalar("loss/alpha_loss", metric['alpha_loss'], step)
+        tf.summary.scalar("track/alpha", metric['alpha'], step)
 
     def predict(self, obs):
         act, _ = self.actor.sample(obs)

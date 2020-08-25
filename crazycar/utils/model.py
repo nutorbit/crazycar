@@ -6,6 +6,21 @@ from collections import deque
 from tensorflow.keras import layers
 
 
+def initial(seed=100):
+    """
+    Initial seed & gpu
+
+    Args:
+        seed: seed number
+    """
+
+    set_seed(seed)
+
+    if tf.test.is_gpu_available():  # gpu limit
+        physical_devices = tf.config.list_physical_devices('GPU')
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+
 def set_seed(seed=100):
     """
     Set global seed
@@ -104,6 +119,18 @@ class Replay:
                 np.expand_dims(np.concatenate([el["done"] for el in data]), axis=-1), dtype=tf.float32
             )
         }
+
+        # clear unwanted key
+        if batch["obs"]["image"] is None:
+            batch["obs"].pop("image")
+        if batch["obs"]["sensor"] is None:
+            batch["obs"].pop("sensor")
+
+        if batch["next_obs"]["image"] is None:
+            batch["next_obs"].pop("image")
+        if batch["next_obs"]["sensor"] is None:
+            batch["next_obs"].pop("sensor")
+
         return batch
 
     def sample(self, size=256):
@@ -112,6 +139,50 @@ class Replay:
         idx = idx[:size]
         tmp = np.array(self.data)
         return self.process(tmp[idx])
+
+
+def evaluation(env, models, n_episode=10):
+    """
+    Evaluation the models
+
+    Args:
+        env: environment
+        models: list of model
+    """
+
+    steps = []
+    rews = []
+
+    for _ in range(n_episode):
+        obs = env.reset()
+        done = False
+        step_runner = 0
+        rew_runner = []
+
+        while not done:
+
+            # get action
+            acts = []
+            for idx in range(len(models)):
+                acts.append(models[idx].predict(obs[idx]))
+            acts = np.squeeze(np.array(acts), axis=1)
+
+            # apply action
+            next_obs, rew, done, info = env.step(acts)
+
+            # save
+            step_runner += 1
+            rew_runner.append(np.array(rew))
+
+            # to next state
+            done = done[0]
+            obs = next_obs
+
+        # store step per episode
+        rews.append(np.sum(np.array(rew_runner), axis=0))
+        steps.append(step_runner)
+
+    return np.squeeze(np.mean(np.array(rews), axis=0), axis=1), np.mean(steps)
 
 
 if __name__ == "__main__":
