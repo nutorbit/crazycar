@@ -14,7 +14,7 @@ class SensorAgent(BaseAgent):
                 [
                     self.get_sensor(),
                     np.array([self.speed]),
-                    np.array([self.get_diff_angle()])
+                    # np.array([self.get_diff_angle()])
                 ]
             ), axis=0)
         }

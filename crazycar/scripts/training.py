@@ -15,7 +15,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer("n_steps", int(1e6), "number of steps for training")
 flags.DEFINE_integer("start_steps", 1000, "number of steps for random action")
 flags.DEFINE_integer("batch_size", 256, "batch size")
-flags.DEFINE_integer("eval_steps", int(1e3), "number of steps for evaluation")
+flags.DEFINE_integer("eval_steps", int(1e4), "number of steps for evaluation")
 flags.DEFINE_string("name", None, "experiment name for logging")
 flags.mark_flag_as_required("name")
 
@@ -28,18 +28,19 @@ def main(_):
     # define environment
     env = Environment(map_id=2)
     agents = [SensorAgent, SensorAgent]
-    positions = [[2.9 - 0.7 / 2, 1.1, math.pi / 2], [2.9 - 0.7 / 2, 4.1, math.pi / 2]]
+    positions = [[2.9 - 0.7 / 2, 1.1, math.pi / 2]]
     for agent, pos in zip(agents, positions):
         env.insert_car(agent, pos)
 
     # define models
-    models = [SAC(Sensor, 2), TD3(Sensor, 2)]
+    models = [SAC(Sensor, 2)]
     writers = [
         tf.summary.create_file_writer(f'./logs/{FLAGS.name}/{model.__class__.__name__}-{idx}')
         for idx, model in enumerate(models)
     ]
 
     step = 0
+    max_rew = float("-inf")
 
     while step < FLAGS.n_steps:
         obs = env.reset()
@@ -84,8 +85,11 @@ def main(_):
                 print(f"|Evaluation at {step:08d}| Mean reward: {str(mean_rew)}, Mean step: {str(mean_step)}")
 
                 for idx, model in enumerate(models):
+
                     # save model
-                    tf.saved_model.save(model.actor, f"./models/{FLAGS.name}/{model.__class__.__name__}-{idx}")
+                    if mean_rew[idx] > max_rew:
+                        tf.saved_model.save(model.actor, f"./models/{FLAGS.name}/{model.__class__.__name__}-{idx}")
+                        max_rew = mean_rew[idx]
 
                     # addition metric
                     with writers[idx].as_default():

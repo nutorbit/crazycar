@@ -49,7 +49,7 @@ class Combine(tf.keras.Model):
         super().__init__()
         self.image_reps = ImpalaCNN()
         self.sensor_reps = tf.keras.Sequential([
-            layers.Input(len(DISTANCE_SENSORS)),
+            layers.Input(len(DISTANCE_SENSORS) + 2),
             layers.Dense(256, activation=activations.tanh)
         ])
         self.out_size = 512

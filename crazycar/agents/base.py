@@ -146,7 +146,7 @@ class BaseAgent:
 
         x, y, yaw = self.get_coordinate()
 
-        angles = list(range(0, 360, 45))
+        angles = list(range(-180, 180+1, 45))
 
         for angle in angles:
             # skip angle
@@ -156,6 +156,8 @@ class BaseAgent:
             # in range
             if any([func(x, y) for func in self._direction_field[angle]]):
                 return angle
+
+        # return res[0]
 
     def get_diff_angle(self):
         """
@@ -167,24 +169,9 @@ class BaseAgent:
 
         angleField = self.get_angle_field()
         _, _, yaw = self.get_coordinate()
-        diff = None
-
-        if angleField == 0:
-            diff = abs(yaw - 0)
-        if angleField == 45:
-            diff = abs(yaw - math.pi / 4)
-        if angleField == 90:
-            diff = abs(yaw - math.pi / 2)
-        if angleField == 135:
-            diff = abs(yaw - math.pi / 2 - math.pi / 4)
-        if angleField == 180:
-            diff = abs(abs(yaw) - math.pi)
-        if angleField == 225:
-            diff = abs(yaw + math.pi / 2 + math.pi / 4)
-        if angleField == 270:
-            diff = abs(yaw + math.pi / 2)
-        if angleField == 315:
-            diff = abs(yaw + math.pi / 4)
+        diff = abs((-np.radians(angleField) - yaw)) if yaw <= 0 else abs((np.radians(angleField) - yaw))
+        # TODO: fix bug angle
+        # print(angleField, np.degrees(yaw), np.degrees(diff), )
         return diff / np.pi
 
     def get_sensor(self):
