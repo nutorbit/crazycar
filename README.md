@@ -1,5 +1,7 @@
 # Crazy Car with Reinforcement Learning
 
+This is my thesis. You can get more detail [here](https://docs.google.com/presentation/d/1HilDUzPlwFacKIIccm89qESuJkIsprO7LFcIjbHmzj4/edit?usp=sharing). 
+
 ## Setup Environment
 
 ```shell
