@@ -169,7 +169,8 @@ class BaseAgent:
 
         angleField = self.get_angle_field()
         _, _, yaw = self.get_coordinate()
-        diff = abs((-np.radians(angleField) - yaw)) if yaw <= 0 else abs((np.radians(angleField) - yaw))
+        # diff = abs((-np.radians(angleField) - yaw)) if yaw <= 0 else abs((np.radians(angleField) - yaw))
+        diff = np.radians(angleField) - yaw
         # TODO: fix bug angle
         # print(angleField, np.degrees(yaw), np.degrees(diff), )
         return diff / np.pi

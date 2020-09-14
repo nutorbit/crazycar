@@ -23,7 +23,7 @@ class Racecar(BaseAgent):
 
     def get_reward(self):
         diff_angle = self.get_diff_angle()
-        reward = self.speed * np.cos(diff_angle) - self.speed * np.sin(diff_angle)
+        reward = self.speed * np.cos(diff_angle) - np.abs(self.speed * np.sin(diff_angle))
 
         if self.is_collision():
             reward = -50
