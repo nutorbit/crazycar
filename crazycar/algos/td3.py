@@ -85,14 +85,14 @@ if __name__ == "__main__":
     from crazycar.encoder import Sensor, Image
     from crazycar.utils import set_seed
 
-    from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_DEPT
+    from crazycar.agents.constants import SENSOR_SHAPE, CAMERA_SHAPE
 
     set_seed()
     agent = TD3(Sensor, 5)
 
     tmp = {
-        "sensor": tf.ones((1, len(DISTANCE_SENSORS))),
-        "image": tf.ones((1, CAMERA_HEIGHT, CAMERA_WIDTH, CAMERA_DEPT))
+        "sensor": tf.ones((1, ) + SENSOR_SHAPE),
+        "image": tf.ones((1, ) + CAMERA_SHAPE)
     }
 
     print(agent.predict(tmp, test=True))

@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT
+from crazycar.agents.constants import N_DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT
 from crazycar.utils import rgba2rgb, rgb2gray, timing
 
 
@@ -24,7 +24,7 @@ class BaseAgent:
         self._origin = origin
         self._carpos = carpos
         self._direction_field = direction_field
-        self._dist_sensors = DISTANCE_SENSORS
+        self._dist_sensors = N_DISTANCE_SENSORS
         self.speed = 0
         self.rayHitColor = [1, 0, 0]
         self.rayMissColor = [0, 1, 0]
@@ -58,7 +58,8 @@ class BaseAgent:
         carx = x + self._carpos[0]
         cary = y + self._carpos[1] - carsize / 2
         carStartOrientation = self._p.getQuaternionFromEuler([0, 0, self._carpos[2]])
-        car = self._p.loadURDF("./crazycar/data/racecar/racecar_differential1.urdf", [carx, cary, z], carStartOrientation,
+        car = self._p.loadURDF("./crazycar/data/racecar/racecar_differential1.urdf", [carx, cary, z],
+                               carStartOrientation,
                                globalScaling=scale, useFixedBase=False)
         self.racecarUniqueId = car
 
@@ -102,7 +103,7 @@ class BaseAgent:
         # setup sensor
         for degree in self._dist_sensors:
             from_ = [0, 0, 0]
-            to_   = [np.cos(math.radians(degree)) * self.rayRange, np.sin(math.radians(degree)) * self.rayRange, 0]
+            to_ = [np.cos(math.radians(degree)) * self.rayRange, np.sin(math.radians(degree)) * self.rayRange, 0]
             self._sensor.append(
                 self._p.addUserDebugLine(from_, to_, self.rayHitColor,
                                          parentObjectUniqueId=car, parentLinkIndex=4))
@@ -146,7 +147,7 @@ class BaseAgent:
 
         x, y, yaw = self.get_coordinate()
 
-        angles = list(range(-180, 180+1, 45))
+        angles = list(range(-180, 180 + 1, 45))
 
         for angle in angles:
             # skip angle
@@ -170,10 +171,13 @@ class BaseAgent:
         angleField = self.get_angle_field()
         _, _, yaw = self.get_coordinate()
         # diff = abs((-np.radians(angleField) - yaw)) if yaw <= 0 else abs((np.radians(angleField) - yaw))
-        diff = np.radians(angleField) - yaw
+        try:
+            diff = np.abs(np.radians(angleField) - yaw)
+        except:
+            diff = .0
         # TODO: fix bug angle
         # print(angleField, np.degrees(yaw), np.degrees(diff), )
-        return diff / np.pi
+        return diff
 
     def get_sensor(self):
         """
@@ -232,8 +236,8 @@ class BaseAgent:
         camTarget = [camPos[0] + forwardVec[0] * 10, camPos[1] + forwardVec[1] * 10, camPos[2] + forwardVec[2] * 10]
         viewMat = self._p.computeViewMatrix(camPos, camTarget, camUpVec)
         projMat = (
-        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0000200271606445, -1.0, 0.0, 0.0, -0.02000020071864128,
-        0.0)
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0000200271606445, -1.0, 0.0, 0.0, -0.02000020071864128,
+            0.0)
 
         # segment
         # raw = self._p.getCameraImage(CAMERA_WIDTH, CAMERA_HEIGHT, viewMatrix=viewMat, projectionMatrix=projMat,
@@ -280,18 +284,24 @@ class BaseAgent:
 
         return any([self._is_collision(i) for i in range(1, 10)])
 
-    def apply_action(self, motorCommands):
+    def apply_action(self, commands):
         """
         Apply action to car
 
         Args:
-            motorCommands: [speed, angle]
+            commands: [speed, angle]
         """
 
-        targetVelocity = motorCommands[0] * self.speedMultiplier
-        self.speed = motorCommands[0]
+        if len(commands) != 2:
+            # apply only angle
+            targetVelocity = 1 * self.speedMultiplier
+            steeringAngle = commands[0] * self.steeringMultiplier
 
-        steeringAngle = motorCommands[1] * self.steeringMultiplier
+        else:
+            targetVelocity = commands[0] * self.speedMultiplier
+            steeringAngle = commands[1] * self.steeringMultiplier
+
+        self.speed = targetVelocity / self.speedMultiplier
 
         for motor in self.motorizedwheels:
             self._p.setJointMotorControl2(self.racecarUniqueId, motor, self._p.VELOCITY_CONTROL,

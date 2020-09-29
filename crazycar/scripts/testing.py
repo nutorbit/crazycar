@@ -25,7 +25,7 @@ def main(_):
     # define environment
     env = Environment(map_id=2)
     agents = [SensorAgent]
-    positions = [[2.9 - 0.7 / 2, 1.1, math.pi / 2]]
+    positions = [[2.5, 6, math.pi * 2 / gi]]
     for agent, pos in zip(agents, positions):
         env.insert_car(agent, pos)
 
@@ -43,9 +43,10 @@ def main(_):
             act = models.predict({
                 "sensor": obs
             })
-            print(act)
             obs, rew, done, info = env.step(act)
             done = done[0]
+
+            print(rew)
 
 
 

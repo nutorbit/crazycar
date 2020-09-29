@@ -23,12 +23,14 @@ class Actor(BaseNetwork):
     def __init__(self, encoder, act_dim, hiddens=[256, 256]):
         super().__init__()
         self.enc = encoder()
+        self.act_dim = act_dim
         self.hidden = make_mlp(
-            sizes=[self.enc.out_size] + hiddens,
+            sizes=hiddens,
             activation=activations.tanh
         )
         self.mean = layers.Dense(act_dim)
         self.log_std = layers.Dense(act_dim)
+        self.initialize_input()
 
     @tf.function
     def call(self, obs):
@@ -68,9 +70,11 @@ class Critic(BaseNetwork):
     def __init__(self, encoder, act_dim, hiddens=[256, 256]):
         super().__init__()
         self.enc = encoder()
+        self.act_dim = act_dim
         # print([self.enc.out_size + act_dim] + hiddens + [1])
-        self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.tanh)
-        self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.tanh)
+        self.q1 = make_mlp(sizes=hiddens + [1], activation=activations.tanh)
+        self.q2 = make_mlp(sizes=hiddens + [1], activation=activations.tanh)
+        self.initialize_input()
 
     @tf.function
     def call(self, obs, act):
@@ -89,7 +93,7 @@ class SAC(BaseModel):
 
     def __init__(self, encoder, act_dim,
                  lr=1e-4,
-                 gamma=0.9,
+                 gamma=0.5,
                  interval_target=2,
                  tau=0.05,
                  replay_size=int(1e5),
@@ -206,21 +210,25 @@ class SAC(BaseModel):
 
     def predict(self, obs):
         act, _ = self.actor.sample(obs)
-        return act.numpy()
+        act = act.numpy()
+        if len(act[0]) == 2:
+            # apply rescale to speed
+            act[0][0] = self.rescale(act[0][0])
+        return act
 
 
 if __name__ == "__main__":
     from crazycar.encoder import Sensor, Image
     from crazycar.utils import set_seed
 
-    from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_DEPT
+    from crazycar.agents.constants import SENSOR_SHAPE, CAMERA_SHAPE
 
     set_seed()
     agent = SAC(Sensor, 5)
 
     tmp = {
-        "sensor": tf.ones((1, len(DISTANCE_SENSORS))),
-        "image": tf.ones((1, CAMERA_HEIGHT, CAMERA_WIDTH, CAMERA_DEPT))
+        "sensor": tf.ones((1, ) + SENSOR_SHAPE),
+        "image": tf.ones((1, ) + CAMERA_SHAPE)
     }
 
     print(agent.predict(tmp))

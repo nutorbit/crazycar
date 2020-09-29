@@ -19,17 +19,15 @@ class Actor(BaseNetwork):
     def __init__(self, encoder, act_dim, hiddens=[256, 256]):
         super().__init__()
         self.enc = encoder()
+        self.act_dim = act_dim
         self.pi = make_mlp(
-            sizes=[self.enc.out_size] + hiddens + [act_dim],
+            sizes=hiddens + [act_dim],
             activation=activations.tanh,
             output_activation=activations.tanh
         )
+        self.initialize_input()
 
-    @property
-    def trainable_variables(self):
-        return self.enc.trainable_variables + self.pi.trainable_variables
-
-    @tf.function
+    # @tf.function
     def call(self, obs):
         x = self.enc(obs)
         x = self.pi(x)
@@ -49,13 +47,11 @@ class Critic(BaseNetwork):
     def __init__(self, encoder, act_dim, hiddens=[256, 256]):
         super().__init__()
         self.enc = encoder()
+        self.act_dim = act_dim
         # print([self.enc.out_size + act_dim] + hiddens + [1])
-        self.q1 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.tanh)
-        self.q2 = make_mlp(sizes=[self.enc.out_size + act_dim] + hiddens + [1], activation=activations.tanh)
-
-    @property
-    def trainable_variables(self):
-        return self.enc.trainable_variables + self.q1.trainable_variables + self.q2.trainable_variables
+        self.q1 = make_mlp(sizes=hiddens + [1], activation=activations.tanh)
+        self.q2 = make_mlp(sizes=hiddens + [1], activation=activations.tanh)
+        self.initialize_input()
 
     @tf.function
     def call(self, obs, act):
@@ -145,26 +141,36 @@ class DDPG(BaseModel):
 
 
 if __name__ == "__main__":
-    from crazycar.encoder import Sensor, Image
+    import numpy as np
+
+    from crazycar.encoder import Sensor, Image, Combine
     from crazycar.utils import set_seed
 
-    from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_DEPT
+    from crazycar.agents.constants import SENSOR_SHAPE, CAMERA_SHAPE
 
     set_seed()
-    agent = DDPG(Image, 2)
 
     tmp = {
-        "sensor": tf.ones((1, len(DISTANCE_SENSORS) + 2)),
-        "image": tf.ones((1, CAMERA_HEIGHT, CAMERA_WIDTH, CAMERA_DEPT))
+        "sensor": tf.ones((1, ) + SENSOR_SHAPE),
+        "image": tf.ones((1, ) + CAMERA_SHAPE)
     }
 
-    p1 = agent.actor(tmp)
-    p2 = agent.actor_target(tmp)
-    agent.actor_target.soft_update(agent.actor, 0.05)
-    print(p1)
-    print(p2)
+    agent = DDPG(Combine, 2)
+    #
+
+    #
+    # agent.actor_target.hard_update(agent.actor)
+    # p1 = agent.critic(tmp, np.zeros((1, 2), dtype='float32'))
+    # p2 = agent.critic_target(tmp, np.zeros((1, 2), dtype='float32'))
+    # print(p1)
+    # print(p2)
 
     print(len(agent.actor.trainable_variables))
     print(len(agent.actor_target.trainable_variables))
+
+    # for l, r in zip(agent.actor.enc.image_reps.trainable_variables, agent.actor_target.enc.image_reps.trainable_variables):
+    #     # r.assign(l)
+    #     print(l.name, r.name, np.mean(l == r))
+    # agent.actor.summary()
 
     # print(agent.predict(tmp))

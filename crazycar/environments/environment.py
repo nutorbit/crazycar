@@ -4,7 +4,7 @@ from pybullet_envs.bullet import bullet_client
 
 from crazycar.environments.maps import Map
 from crazycar.environments.constants import TIMESTEP_SIM, ORIGIN, MAX_STEP
-from crazycar.utils import timing
+from crazycar.utils import timing, get_observation_shape
 
 
 class Environment:
@@ -122,7 +122,7 @@ class Environment:
             True or False
         """
 
-        return [self.step_count > MAX_STEP or any([car.nCollision > 0 for car in self.cars])]
+        return [self.step_count > MAX_STEP or all([car.nCollision > 0 for car in self.cars])]
 
     def get_info(self):
         """
@@ -141,6 +141,9 @@ class Environment:
 
         Args:
             acts: shape(n, 2), where `n` is a number of cars
+
+        Returns:
+            observation, reward, is done, info
         """
 
         for car, act in zip(self.cars, acts):
@@ -171,3 +174,19 @@ class Environment:
             self.restore_cars()
 
         return self.get_obs()
+
+    def sample_observation(self, with_shape=False):
+        """
+        Sample observation
+
+        Returns:
+            observation dict, (observation shape dict)
+        """
+
+        sample_obs = self.get_obs()[0]
+        shape_obs = None
+
+        if with_shape:
+            shape_obs = get_observation_shape(sample_obs)
+
+        return sample_obs, shape_obs

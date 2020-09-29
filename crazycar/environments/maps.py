@@ -143,27 +143,19 @@ class Map:
         direction_field = {  # degree
             0: [
                 lambda i, j: (x1 <= i <= x2) and (0 <= j <= y1),
-            ],
-            45: [
-                lambda i, j: (x2 <= i <= x3) and (0 <= j <= y1),
+                lambda i, j: (0 <= i <= x1) and (0 <= j <= y1),
             ],
             90: [
                 lambda i, j: (x2 <= i <= x3) and (y1 <= j <= y2),
-            ],
-            135: [
-                lambda i, j: (x2 <= i <= x3) and (y2 <= j <= y3)
+                lambda i, j: (x2 <= i <= x3) and (0 <= j <= y1),
             ],
             180: [
                 lambda i, j: (x1 <= i <= x2) and (y2 <= j <= y3),
-            ],
-            -135: [
-                lambda i, j: (0 <= i <= x1) and (y2 <= j <= y3),
+                lambda i, j: (x2 <= i <= x3) and (y2 <= j <= y3)
             ],
             -90: [
                 lambda i, j: (0 <= i <= x1) and (y1 <= j <= y2),
-            ],
-            -45: [
-                lambda i, j: (0 <= i <= x1) and (0 <= j <= y1),
+                lambda i, j: (0 <= i <= x1) and (y2 <= j <= y3),
             ],
         }
 

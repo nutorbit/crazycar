@@ -14,6 +14,7 @@ from crazycar.utils import evaluation, initial
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("n_steps", int(1e6), "number of steps for training")
 flags.DEFINE_integer("start_steps", 1000, "number of steps for random action")
+flags.DEFINE_integer("step_update", 100, "number of steps before update")
 flags.DEFINE_integer("batch_size", 256, "batch size")
 flags.DEFINE_integer("eval_steps", int(1e4), "number of steps for evaluation")
 flags.DEFINE_string("name", None, "experiment name for logging")
@@ -28,19 +29,20 @@ def main(_):
     # define environment
     env = Environment(map_id=2)
     agents = [SensorAgent, SensorAgent]
-    positions = [[2.9 - 0.7 / 2, 1.1, math.pi / 2]]
+    positions = [[2.4, 1, math.pi / 2], [2.7, 4, math.pi / 2]]
+    # positions = [[2.5, 6, math.pi * 2 / 2]]
     for agent, pos in zip(agents, positions):
         env.insert_car(agent, pos)
 
     # define models
-    models = [SAC(Sensor, 2)]
+    models = [SAC(Sensor, 1), SAC(Sensor, 1)]
     writers = [
         tf.summary.create_file_writer(f'./logs/{FLAGS.name}/{model.__class__.__name__}-{idx}')
         for idx, model in enumerate(models)
     ]
 
     step = 0
-    max_rew = float("-inf")
+    max_rew = [float("-inf") for _ in range(len(models))]
 
     while step < FLAGS.n_steps:
         obs = env.reset()
@@ -71,13 +73,14 @@ def main(_):
                 })
 
             # update params
-            if step > FLAGS.batch_size:
-                for idx, model in enumerate(models):
-                    metric = model.update_params(step, FLAGS.batch_size)
+            if step > FLAGS.batch_size and step % FLAGS.step_update == 0:
+                for _ in range(FLAGS.step_update):
+                    for idx, model in enumerate(models):
+                        metric = model.update_params(step, FLAGS.batch_size)
 
-                    # write tensorboard
-                    with writers[idx].as_default():
-                        model.write_metric(metric, step)
+                        # write tensorboard
+                        with writers[idx].as_default():
+                            model.write_metric(metric, step)
 
             # evaluation
             if step % FLAGS.eval_steps == 0:
@@ -87,9 +90,9 @@ def main(_):
                 for idx, model in enumerate(models):
 
                     # save model
-                    if mean_rew[idx] > max_rew:
-                        tf.saved_model.save(model.actor, f"./models/{FLAGS.name}/{model.__class__.__name__}-{idx}")
-                        max_rew = mean_rew[idx]
+                    if mean_rew[idx] > max_rew[idx]:
+                        # tf.saved_model.save(model.actor, f"./models/{FLAGS.name}/{model.__class__.__name__}-{idx}")
+                        max_rew[idx] = mean_rew[idx]
 
                     # addition metric
                     with writers[idx].as_default():

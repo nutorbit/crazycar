@@ -47,7 +47,7 @@ def make_mlp(sizes, activation, output_activation=None):
         layer block
     """
 
-    l = [layers.Input(sizes[0])]
+    l = []
     for i in range(1, len(sizes)):
         if i != len(sizes) - 1:
             l.append(layers.Dense(sizes[i], activation=activation))

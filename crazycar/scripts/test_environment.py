@@ -11,23 +11,21 @@ logging.set_verbosity(logging.INFO)
 logging.get_absl_handler().setFormatter(None)
 
 
-def main(args):
-    print(args)
+def main(_):
     env = Environment(map_id=2)
-    env.insert_car(SensorAgent, [0.2, 0.2, 0])
-    # env.insert_car(ImageAgent, [2.5, 4, math.pi * 2 / 2.0])
-    # env.insert_car(Racecar, [2.5, 2, math.pi * 2 / 2.0])
+    # env.insert_car(SensorAgent, [0.2, 0.2, 0])
+    env.insert_car(SensorAgent, [2.5, 6, math.pi * 2 / 2.0])
+    # env.insert_car(SensorAgent, [2.5, 0.3, math.pi * 2 / 2.0])
 
     env.reset()
     logging.info("test")
 
-    acts = np.array([[1, 1]]).reshape((1, 2))
-    import time
+    acts = np.array([[0, 0]]).reshape((1, 2))
 
     while 1:
         obs, rew, done, info = env.step(acts)
         print(rew)
-        time.sleep(0.5)
+        # time.sleep(0.5)
 
 
 if __name__ == "__main__":

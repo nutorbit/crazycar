@@ -2,8 +2,6 @@ import tensorflow as tf
 
 from tensorflow.keras import layers, activations
 
-from crazycar.agents.constants import DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_DEPT
-
 
 class Sensor(tf.keras.Model):
     """
@@ -13,10 +11,8 @@ class Sensor(tf.keras.Model):
     def __init__(self):
         super().__init__()
         self.encode = tf.keras.Sequential([
-            layers.Input(len(DISTANCE_SENSORS) + 2),
             layers.Dense(256, activation=activations.tanh)
         ])
-        self.out_size = 256
 
     @tf.function
     def call(self, obs):
@@ -32,10 +28,11 @@ class Image(tf.keras.Model):
     def __init__(self):
         super().__init__()
         self.encode = ImpalaCNN()
-        self.out_size = 256
 
     @tf.function
     def call(self, obs):
+        # print(obs['image'].shape)
+        # print(obs['image'])
         x = self.encode(obs['image'])
         return x
 
@@ -49,10 +46,8 @@ class Combine(tf.keras.Model):
         super().__init__()
         self.image_reps = ImpalaCNN()
         self.sensor_reps = tf.keras.Sequential([
-            layers.Input(len(DISTANCE_SENSORS) + 2),
             layers.Dense(256, activation=activations.tanh)
         ])
-        self.out_size = 512
 
     @tf.function
     def call(self, obs):
@@ -70,7 +65,7 @@ class ImpalaCNN(tf.keras.Model):
 
     def __init__(self):
         super().__init__()
-        l = [layers.Input((CAMERA_HEIGHT, CAMERA_WIDTH, CAMERA_DEPT))]
+        l = []
         for depth_out in [16, 32, 32]:
             l.extend([
                 layers.Conv2D(filters=depth_out, kernel_size=3, padding='same'),

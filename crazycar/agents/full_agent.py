@@ -15,7 +15,7 @@ class Racecar(BaseAgent):
                 [
                     self.get_sensor(),
                     np.array([self.speed]),
-                    np.array([self.get_diff_angle()])
+                    # np.array([self.get_diff_angle()])
                 ]
             ), axis=0)
         }
@@ -29,8 +29,8 @@ class Racecar(BaseAgent):
             reward = -50
             self.nCollision += 1
 
-        # if math.pi - math.pi / 4 <= diff_angle * math.pi <= math.pi + math.pi / 4:
-        #     reward = -50
-        #     self.nCollision += 1
+        if math.pi - math.pi / 4 <= diff_angle * math.pi <= math.pi + math.pi / 4:
+            reward = -50
+            self.nCollision += 1
 
         return reward

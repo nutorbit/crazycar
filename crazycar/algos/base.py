@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 from crazycar.utils import Replay
+from crazycar.agents.constants import SENSOR_SHAPE, CAMERA_SHAPE
 
 
 class BaseNetwork(tf.keras.Model):
@@ -11,6 +12,25 @@ class BaseNetwork(tf.keras.Model):
 
     def __init__(self):
         super().__init__()
+
+    # @tf.function
+    def initialize_input(self):
+        tmp = {
+            "sensor": tf.ones((1, ) + SENSOR_SHAPE),
+            "image": tf.ones((1, ) + CAMERA_SHAPE)
+        }
+
+        # filter perception
+        if self.enc.__class__.__name__ == "Sensor":
+            tmp.pop("image", None)
+        if self.enc.__class__.__name__ == "Image":
+            tmp.pop("sensor", None)
+
+        # filter for
+        if self.__class__.__name__ == "Critic":
+            _ = self(tmp, tf.ones((1, self.act_dim)))
+        else:
+            _ = self(tmp)
 
     @tf.function
     def soft_update(self, other_network, tau):
@@ -42,6 +62,16 @@ class BaseModel:
 
     def critic_loss(self, batch):
         raise NotImplementedError
+
+    @staticmethod
+    def rescale(act, low=0, high=1):
+        """
+        Rescale action from tanh [-1, 1] to [low, high]
+        """
+
+        act = low + (0.5 * (act + 1.0) * (high - low))
+
+        return act
 
     @tf.function
     def update_actor(self, batch):
@@ -84,8 +114,16 @@ class BaseModel:
         }
 
     def random_action(self):
-        return np.random.uniform(-1, 1, size=(1, 2))
+        act = np.random.uniform(-1, 1, size=(1, self.actor.act_dim))
+        if self.actor.act_dim == 2:
+            # apply rescale to speed
+            act[0][0] = self.rescale(act[0][0])
+        return act
 
     def predict(self, obs):
         act = self.actor(obs)
-        return act.numpy()
+        act = act.numpy()
+        if len(act[0]) == 2:
+            # apply rescale to speed
+            act[0][0] = self.rescale(act[0][0])
+        return act
