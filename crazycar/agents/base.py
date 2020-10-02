@@ -1,9 +1,14 @@
 import math
+import crazycar
+import os
 
 import numpy as np
 
 from crazycar.agents.constants import N_DISTANCE_SENSORS, CAMERA_WIDTH, CAMERA_HEIGHT
 from crazycar.utils import rgba2rgb, rgb2gray, timing
+
+
+MODULE_PATH = os.path.dirname(os.path.abspath(crazycar.__file__))
 
 
 class BaseAgent:
@@ -58,9 +63,13 @@ class BaseAgent:
         carx = x + self._carpos[0]
         cary = y + self._carpos[1] - carsize / 2
         carStartOrientation = self._p.getQuaternionFromEuler([0, 0, self._carpos[2]])
-        car = self._p.loadURDF("./crazycar/data/racecar/racecar_differential1.urdf", [carx, cary, z],
-                               carStartOrientation,
-                               globalScaling=scale, useFixedBase=False)
+        car = self._p.loadURDF(
+            os.path.join(MODULE_PATH, "data/racecar/racecar_differential1.urdf"),
+            [carx, cary, z],
+            carStartOrientation,
+            globalScaling=scale,
+            useFixedBase=False
+        )
         self.racecarUniqueId = car
 
         # setup wheels

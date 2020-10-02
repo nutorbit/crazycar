@@ -25,7 +25,7 @@ def main(_):
     # define environment
     env = Environment(map_id=2)
     agents = [SensorAgent]
-    positions = [[2.5, 6, math.pi * 2 / gi]]
+    positions = [[2.5, 6, math.pi * 2 / 2.0]]
     for agent, pos in zip(agents, positions):
         env.insert_car(agent, pos)
 
@@ -47,8 +47,6 @@ def main(_):
             done = done[0]
 
             print(rew)
-
-
 
 
 if __name__ == "__main__":

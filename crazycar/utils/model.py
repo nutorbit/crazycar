@@ -1,9 +1,9 @@
 import random
 import tensorflow as tf
+import sonnet as snt
 import numpy as np
 
 from collections import deque
-from tensorflow.keras import layers
 
 
 def initial(seed=100):
@@ -15,6 +15,7 @@ def initial(seed=100):
     """
 
     set_seed(seed)
+    # tf.keras.backend.set_floatx('float64')
 
     if tf.test.is_gpu_available():  # gpu limit
         physical_devices = tf.config.list_physical_devices('GPU')
@@ -50,10 +51,16 @@ def make_mlp(sizes, activation, output_activation=None):
     l = []
     for i in range(1, len(sizes)):
         if i != len(sizes) - 1:
-            l.append(layers.Dense(sizes[i], activation=activation))
+            l.extend([snt.Linear(sizes[i]), activation])
+            # l.append(layers.Dense(sizes[i], activation=activation))
         else:
-            l.append(layers.Dense(sizes[i], activation=output_activation))
-    return tf.keras.Sequential(l)
+            l.append(snt.Linear(sizes[i]))
+            if output_activation:
+                l.append(output_activation)
+            # l.append(layers.Dense(sizes[i], activation=output_activation))
+    # return tf.keras.Sequential(l)
+    # print(l)
+    return snt.Sequential(l)
 
 
 class Replay:

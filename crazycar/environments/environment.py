@@ -1,10 +1,15 @@
 import pybullet
+import crazycar
+import os
 
 from pybullet_envs.bullet import bullet_client
 
 from crazycar.environments.maps import Map
 from crazycar.environments.constants import TIMESTEP_SIM, ORIGIN, MAX_STEP
 from crazycar.utils import timing, get_observation_shape
+
+
+MODULE_PATH = os.path.dirname(os.path.abspath(crazycar.__file__))
 
 
 class Environment:
@@ -36,7 +41,7 @@ class Environment:
         self.p.setPhysicsEngineParameter(fixedTimeStep=1.0 / 60., numSolverIterations=550, numSubSteps=8)
 
         # spawn plane
-        self.plane_id = self.p.loadURDF("./crazycar/data/plane.urdf")
+        self.plane_id = self.p.loadURDF(os.path.join(MODULE_PATH, "data/plane.urdf"))
 
         # spawn race track
         m = Map(self.p, ORIGIN)
@@ -190,3 +195,9 @@ class Environment:
             shape_obs = get_observation_shape(sample_obs)
 
         return sample_obs, shape_obs
+
+
+if __name__ == "__main__":
+    import os
+    import crazycar
+    print(os.path.join(os.path.dirname(os.path.abspath(crazycar.__file__)), "test"))

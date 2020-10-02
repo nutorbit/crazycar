@@ -1,4 +1,9 @@
 import math
+import crazycar
+import os
+
+
+MODULE_PATH = os.path.dirname(os.path.abspath(crazycar.__file__))
 
 
 class Map:
@@ -20,46 +25,86 @@ class Map:
         }
 
     def map1(self):
-        w1 = self.p.loadURDF("./crazycar/data/elem2900.urdf", [self.x, self.y, self.z], self.Orientation000)
-        w2 = self.p.loadURDF("./crazycar/data/elem6500.urdf",
-                        [self.x + 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 + self.width / 2, self.z],
-                        self.Orientation090)
-        w3 = self.p.loadURDF("./crazycar/data/elem2900.urdf", [self.x - self.width, self.y + 6.5, self.z], self.Orientation000)
-        w4 = self.p.loadURDF("./crazycar/data/elem6500.urdf",
-                        [self.x - 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 - self.width / 2, self.z],
-                        self.Orientation090)
+        w1 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem2900.urdf"),
+            [self.x, self.y, self.z],
+            self.Orientation000
+        )
+        w2 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem6500.urdf"),
+            [self.x + 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 + self.width / 2, self.z],
+            self.Orientation090
+        )
+        w3 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem2900.urdf"),
+            [self.x - self.width, self.y + 6.5, self.z],
+            self.Orientation000
+        )
+        w4 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem6500.urdf"),
+            [self.x - 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 - self.width / 2, self.z],
+            self.Orientation090
+        )
+
         # inside1
-        w5 = self.p.loadURDF("./crazycar/data/elem0200.urdf",
-                        [self.x - 1.4 / 2 - self.width, self.y + 0.7 + 0.8 + self.width / 2, self.z],
-                        self.Orientation000)
-        w6 = self.p.loadURDF("./crazycar/data/elem0800.urdf",
-                        [self.x - 1.4 / 2 + self.width / 2, self.y + 0.7 + 0.8 / 2, self.z], self.Orientation090)
-        w7 = self.p.loadURDF("./crazycar/data/elem1400-1.urdf", [self.x + self.width, self.y + 0.7 + self.width / 2, self.z],
-                        self.Orientation000)
-        w8 = self.p.loadURDF("./crazycar/data/elem5000.urdf",
-                        [self.x + self.width - self.width / 2 + 1.4 / 2, self.y + 0.7 + self.width + 5.0 / 2, self.z],
-                        self.Orientation090)
-        w9 = self.p.loadURDF("./crazycar/data/elem1400-1.urdf",
-                        [self.x + self.width - self.width, self.y + 0.7 + self.width / 2 + 5.0, self.z],
-                        self.Orientation000)
-        w10 = self.p.loadURDF("./crazycar/data/elem2000.urdf",
-                        [self.x + self.width - self.width / 2 - 0.7, self.y + 0.7 + 5.0 - 2 / 2, self.z],
-                        self.Orientation090)
+        os.path.join(MODULE_PATH, "data/elem0200.urdf")
+        os.path.join(MODULE_PATH, "data/elem0800.urdf")
+        os.path.join(MODULE_PATH, "data/elem1400-1.urdf")
+        os.path.join(MODULE_PATH, "data/elem5000.urdf")
+        w5 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem0200.urdf"),
+            [self.x - 1.4 / 2 - self.width, self.y + 0.7 + 0.8 + self.width / 2, self.z],
+            self.Orientation000
+        )
+        w6 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem0800.urdf"),
+            [self.x - 1.4 / 2 + self.width / 2, self.y + 0.7 + 0.8 / 2, self.z],
+            self.Orientation090
+        )
+        w7 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem1400-1.urdf"),
+            [self.x + self.width, self.y + 0.7 + self.width / 2, self.z],
+            self.Orientation000
+        )
+        w8 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem5000.urdf"),
+            [self.x + self.width - self.width / 2 + 1.4 / 2, self.y + 0.7 + self.width + 5.0 / 2, self.z],
+            self.Orientation090
+        )
+        w9 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem1400-1.urdf"),
+            [self.x + self.width - self.width, self.y + 0.7 + self.width / 2 + 5.0, self.z],
+            self.Orientation000
+        )
+        w10 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem2000.urdf"),
+            [self.x + self.width - self.width / 2 - 0.7, self.y + 0.7 + 5.0 - 2 / 2, self.z],
+            self.Orientation090
+        )
         # inside2
-        w11 = self.p.loadURDF("./crazycar/data/elem2600.urdf",
-                        [self.x - 2.9 / 2 + 1.4 + self.width / 2,
-                         self.y + 0.7 + self.width + 5.0 - self.width - 0.78 - 2.6 / 2, self.z], self.Orientation090)
-        w12 = self.p.loadURDF("./crazycar/data/elem1400-1.urdf",
-                        [self.x - 2.9 / 2 + 1.4 / 2, self.y + 0.7 + self.width / 2 + 5.0 - 2.6 / 2 - 0.78 - 2.6 / 2,
-                         self.z], self.Orientation000)
+        w11 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem2600.urdf"),
+            [self.x - 2.9 / 2 + 1.4 + self.width / 2, self.y + 0.7 + self.width \
+                + 5.0 - self.width - 0.78 - 2.6 / 2, self.z],
+            self.Orientation090
+        )
+        w12 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem1400-1.urdf"),
+            [self.x - 2.9 / 2 + 1.4 / 2, self.y + 0.7 + self.width / 2 + 5.0 - 2.6 / 2 - 0.78 - 2.6 / 2, self.z],
+            self.Orientation000
+        )
 
         # corners
-        w13 = self.p.loadURDF("./crazycar/data/elem0720.urdf", [self.x + self.width + 1.4 / 2 - self.d - self.width / 2,
-                                                       self.y + 0.7 + self.width / 2 + self.d, self.z],
-                        self.Orientation045)
-        w14 = self.p.loadURDF("./crazycar/data/elem0720.urdf", [self.x + self.width - 1.4 / 2 + self.d - self.width / 2,
-                                                       self.y + 0.7 + self.width / 2 + self.d, self.z],
-                        self.Orientation135)
+        w13 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem0720.urdf"),
+            [self.x + self.width + 1.4 / 2 - self.d - self.width / 2, self.y + 0.7 + self.width / 2 + self.d, self.z],
+            self.Orientation045
+        )
+        w14 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem0720.urdf"),
+            [self.x + self.width - 1.4 / 2 + self.d - self.width / 2, self.y + 0.7 + self.width / 2 + self.d, self.z],
+            self.Orientation135
+        )
 
         x1 = 2.9 / 2 - 1.4 / 2 + 0.05 / 2
         x2 = 2.9 / 2 - 2.9 / 2 + 1.4 + 0.05 / 2
@@ -112,25 +157,49 @@ class Map:
         return direction_field, [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14]
 
     def map2(self):
-        w1 = self.p.loadURDF("./crazycar/data/elem2900.urdf", [self.x, self.y, self.z], self.Orientation000)
-        w2 = self.p.loadURDF("./crazycar/data/elem6500.urdf",
-                        [self.x + 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 + self.width / 2, self.z],
-                        self.Orientation090)
-        w3 = self.p.loadURDF("./crazycar/data/elem2900.urdf", [self.x - self.width, self.y + 6.5, self.z], self.Orientation000)
-        w4 = self.p.loadURDF("./crazycar/data/elem6500.urdf",
-                        [self.x - 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 - self.width / 2, self.z],
-                        self.Orientation090)
+        w1 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem2900.urdf"),
+            [self.x, self.y, self.z],
+            self.Orientation000
+        )
+        w2 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem6500.urdf"),
+            [self.x + 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 + self.width / 2, self.z],
+            self.Orientation090
+        )
+        w3 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem2900.urdf"),
+            [self.x - self.width, self.y + 6.5, self.z],
+            self.Orientation000
+        )
+        w4 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem6500.urdf"),
+            [self.x - 2.9 / 2 - self.width / 2, self.y + 6.5 / 2 - self.width / 2, self.z],
+            self.Orientation090
+        )
+        os.path.join(MODULE_PATH, "data/elem1400-2.urdf")
         #
-        w5 = self.p.loadURDF("./crazycar/data/elem1400-2.urdf",
-                        [self.x + self.width, self.y + 0.7 + self.width / 2 + 0.05, self.z], self.Orientation000)
-        w6 = self.p.loadURDF("./crazycar/data/elem5000.urdf",
-                        [self.x + self.width - self.width / 2 + 0.65, self.y + 0.7 + self.width + 5.0 / 2, self.z],
-                        self.Orientation090)
-        w7 = self.p.loadURDF("./crazycar/data/elem1400-2.urdf",
-                        [self.x + self.width, self.y + 0.7 + self.width / 2 + 5.0, self.z], self.Orientation000)
-        w8 = self.p.loadURDF("./crazycar/data/elem5000.urdf",
-                        [self.x + self.width - self.width / 2 - 0.65, self.y + 0.7 + self.width + 5.0 / 2, self.z],
-                        self.Orientation090)
+        w5 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem1400-2.urdf"),
+            [self.x + self.width, self.y + 0.7 + self.width / 2 + 0.05, self.z],
+            self.Orientation000
+        )
+        w6 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem5000.urdf"),
+            [self.x + self.width - self.width / 2 + 0.65, self.y + 0.7 + self.width + 5.0 / 2, self.z],
+            self.Orientation090
+        )
+        w7 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem1400-2.urdf"),
+            [self.x + self.width, self.y + 0.7 + self.width / 2 + 5.0, self.z],
+            self.Orientation000
+        )
+
+        w8 = self.p.loadURDF(
+            os.path.join(MODULE_PATH, "data/elem5000.urdf"),
+            [self.x + self.width - self.width / 2 - 0.65, self.y + 0.7 + self.width + 5.0 / 2, self.z],
+            self.Orientation090
+        )
 
         x1 = self.x + self.width - self.width / 2 - 0.65
         x2 = self.x + self.width - self.width / 2 + 0.65
