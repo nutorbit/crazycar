@@ -29,9 +29,10 @@ class TD3(DDPG):
                  replay_size=int(1e5),
                  hiddens=[256, 256],
                  target_noise=0.2,
-                 noise_clip=0.5):
+                 noise_clip=0.5,
+                 name="TD3"):
 
-        super().__init__(encoder, act_dim, lr, gamma, interval_target, tau, replay_size, hiddens)
+        super().__init__(encoder, act_dim, lr, gamma, interval_target, tau, replay_size, hiddens, name=name)
         self.target_noise = target_noise
         self.noise_clip = noise_clip
 

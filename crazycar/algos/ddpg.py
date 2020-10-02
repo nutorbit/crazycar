@@ -1,6 +1,5 @@
 import tensorflow as tf
-
-from tensorflow.keras import activations, optimizers
+import sonnet as snt
 
 from crazycar.utils import make_mlp
 from crazycar.algos.base import BaseNetwork, BaseModel
@@ -16,19 +15,19 @@ class Actor(BaseNetwork):
         hiddens: NO. units for each layers
     """
 
-    def __init__(self, encoder, act_dim, hiddens=[256, 256]):
-        super().__init__()
+    def __init__(self, encoder, act_dim, hiddens=[256, 256], name=None):
+        super().__init__(name=name)
         self.enc = encoder()
         self.act_dim = act_dim
         self.pi = make_mlp(
             sizes=hiddens + [act_dim],
-            activation=activations.tanh,
-            output_activation=activations.tanh
+            activation=tf.nn.tanh,
+            output_activation=tf.nn.tanh
         )
         self.initialize_input()
 
-    # @tf.function
-    def call(self, obs):
+    @tf.function
+    def __call__(self, obs):
         x = self.enc(obs)
         x = self.pi(x)
         return x
@@ -44,17 +43,17 @@ class Critic(BaseNetwork):
         hiddens: NO. units for each layers
     """
 
-    def __init__(self, encoder, act_dim, hiddens=[256, 256]):
-        super().__init__()
+    def __init__(self, encoder, act_dim, hiddens=[256, 256], name=None):
+        super().__init__(name=name)
         self.enc = encoder()
         self.act_dim = act_dim
         # print([self.enc.out_size + act_dim] + hiddens + [1])
-        self.q1 = make_mlp(sizes=hiddens + [1], activation=activations.tanh)
-        self.q2 = make_mlp(sizes=hiddens + [1], activation=activations.tanh)
+        self.q1 = make_mlp(sizes=hiddens + [1], activation=tf.nn.tanh)
+        self.q2 = make_mlp(sizes=hiddens + [1], activation=tf.nn.tanh)
         self.initialize_input()
 
     @tf.function
-    def call(self, obs, act):
+    def __call__(self, obs, act):
         x = self.enc(obs)
         x = tf.concat([x, act], axis=1)
         return self.q1(x), self.q2(x)
@@ -81,27 +80,28 @@ class DDPG(BaseModel):
                  interval_target=2,
                  tau=0.05,
                  replay_size=int(1e5),
-                 hiddens=[256, 256]):
+                 hiddens=[256, 256],
+                 name="DDPG"):
 
-        super().__init__(replay_size)
+        super().__init__(replay_size, name=name)
 
         self.tau = tau
         self.gamma = gamma
         self.interval_target = interval_target
 
         # define actor
-        self.actor = Actor(encoder, act_dim, hiddens)
-        self.actor_target = Actor(encoder, act_dim, hiddens)
+        self.actor = Actor(encoder, act_dim, hiddens, name="actor")
+        self.actor_target = Actor(encoder, act_dim, hiddens, name="actor_target")
         self.actor_target.hard_update(self.actor)
 
         # define critic
-        self.critic = Critic(encoder, act_dim, hiddens)
-        self.critic_target = Critic(encoder, act_dim, hiddens)
+        self.critic = Critic(encoder, act_dim, hiddens, name="critic")
+        self.critic_target = Critic(encoder, act_dim, hiddens, name="critic_target")
         self.critic_target.hard_update(self.critic)
 
         # define optimizer
-        self.actor_opt = optimizers.Adam(lr=lr)
-        self.critic_opt = optimizers.Adam(lr=lr)
+        self.actor_opt = snt.optimizers.Adam(lr)
+        self.critic_opt = snt.optimizers.Adam(lr)
 
     @tf.function
     def actor_loss(self, batch):

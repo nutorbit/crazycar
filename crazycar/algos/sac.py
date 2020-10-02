@@ -1,6 +1,6 @@
 import tensorflow as tf
+import sonnet as snt
 
-from tensorflow.keras import layers, optimizers, activations
 from tensorflow_probability import distributions
 
 from crazycar.utils import make_mlp
@@ -20,20 +20,20 @@ class Actor(BaseNetwork):
         hiddens: NO. units for each layers
     """
 
-    def __init__(self, encoder, act_dim, hiddens=[256, 256]):
-        super().__init__()
+    def __init__(self, encoder, act_dim, hiddens=[256, 256], name=None):
+        super().__init__(name=name)
         self.enc = encoder()
         self.act_dim = act_dim
         self.hidden = make_mlp(
             sizes=hiddens,
-            activation=activations.tanh
+            activation=tf.nn.tanh
         )
-        self.mean = layers.Dense(act_dim)
-        self.log_std = layers.Dense(act_dim)
+        self.mean = snt.Linear(act_dim)
+        self.log_std = snt.Linear(act_dim)
         self.initialize_input()
 
     @tf.function
-    def call(self, obs):
+    def __call__(self, obs):
         x = self.enc(obs)
         x = self.hidden(x)
         mean = self.mean(x)
@@ -67,17 +67,17 @@ class Critic(BaseNetwork):
         hiddens: NO. units for each layers
     """
 
-    def __init__(self, encoder, act_dim, hiddens=[256, 256]):
-        super().__init__()
+    def __init__(self, encoder, act_dim, hiddens=[256, 256], name=None):
+        super().__init__(name=name)
         self.enc = encoder()
         self.act_dim = act_dim
         # print([self.enc.out_size + act_dim] + hiddens + [1])
-        self.q1 = make_mlp(sizes=hiddens + [1], activation=activations.tanh)
-        self.q2 = make_mlp(sizes=hiddens + [1], activation=activations.tanh)
+        self.q1 = make_mlp(sizes=hiddens + [1], activation=tf.nn.tanh)
+        self.q2 = make_mlp(sizes=hiddens + [1], activation=tf.nn.tanh)
         self.initialize_input()
 
     @tf.function
-    def call(self, obs, act):
+    def __call__(self, obs, act):
         x = self.enc(obs)
         x = tf.concat([x, act], axis=1)
         return self.q1(x), self.q2(x)
@@ -97,22 +97,23 @@ class SAC(BaseModel):
                  interval_target=2,
                  tau=0.05,
                  replay_size=int(1e5),
-                 hiddens=[256, 256]):
+                 hiddens=[256, 256],
+                 name="SAC"):
 
-        super().__init__(replay_size)
+        super().__init__(replay_size, name=name)
 
         self.tau = tau
         self.gamma = gamma
         self.interval_target = interval_target
 
         # define actor
-        self.actor = Actor(encoder, act_dim, hiddens)
-        self.actor_target = Actor(encoder, act_dim, hiddens)
+        self.actor = Actor(encoder, act_dim, hiddens, name="actor")
+        self.actor_target = Actor(encoder, act_dim, hiddens, name="actor_target")
         self.actor_target.hard_update(self.actor)
 
         # define critic
-        self.critic = Critic(encoder, act_dim, hiddens)
-        self.critic_target = Critic(encoder, act_dim, hiddens)
+        self.critic = Critic(encoder, act_dim, hiddens, name="critic")
+        self.critic_target = Critic(encoder, act_dim, hiddens, name="critic_target")
         self.critic_target.hard_update(self.critic)
 
         # define alpha
@@ -120,9 +121,9 @@ class SAC(BaseModel):
         self.target_entropy = -tf.constant(act_dim, dtype=tf.float32)
 
         # define optimizer
-        self.actor_opt = optimizers.Adam(lr=lr)
-        self.critic_opt = optimizers.Adam(lr=lr)
-        self.alpha_opt = optimizers.Adam(lr=lr)
+        self.actor_opt = snt.optimizers.Adam(lr)
+        self.critic_opt = snt.optimizers.Adam(lr)
+        self.alpha_opt = snt.optimizers.Adam(lr)
 
     @tf.function
     def actor_loss(self, batch):
@@ -179,7 +180,7 @@ class SAC(BaseModel):
 
             # Optimize the alpha
             grads = tape.gradient(loss, [self.log_alpha])
-            self.alpha_opt.apply_gradients(zip(grads, [self.log_alpha]))
+            self.alpha_opt.apply(grads, [self.log_alpha])
 
         return loss
 

@@ -1,17 +1,18 @@
 import tensorflow as tf
 import numpy as np
+import sonnet as snt
 
 from crazycar.utils import Replay
 from crazycar.agents.constants import SENSOR_SHAPE, CAMERA_SHAPE
 
 
-class BaseNetwork(tf.keras.Model):
+class BaseNetwork(snt.Module):
     """
     Base class for policy network and value network
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
 
     # @tf.function
     def initialize_input(self):
@@ -32,7 +33,7 @@ class BaseNetwork(tf.keras.Model):
         else:
             _ = self(tmp)
 
-    @tf.function
+    # @tf.function
     def soft_update(self, other_network, tau):
         other_variables = other_network.trainable_variables
         current_variables = self.trainable_variables
@@ -46,12 +47,13 @@ class BaseNetwork(tf.keras.Model):
         self.soft_update(other_network, tau=1.)
 
 
-class BaseModel:
+class BaseModel(snt.Module):
     """
     Base class for Actor-Critic algorithm
     """
 
-    def __init__(self, replay_size=int(1e5)):
+    def __init__(self, replay_size=int(1e5), name=None):
+        super().__init__(name=name)
         self.rb = Replay(replay_size)
 
     def write_metric(self, metric, step):
@@ -81,7 +83,7 @@ class BaseModel:
 
             # Optimize the actor
             grads = tape.gradient(loss, self.actor.trainable_variables)
-            self.actor_opt.apply_gradients(zip(grads, self.actor.trainable_variables))
+            self.actor_opt.apply(grads, self.actor.trainable_variables)
 
         return loss
 
@@ -93,7 +95,7 @@ class BaseModel:
 
             # Optimize the critic
             grads = tape.gradient(loss, self.critic.trainable_variables)
-            self.critic_opt.apply_gradients(zip(grads, self.critic.trainable_variables))
+            self.critic_opt.apply(grads, self.critic.trainable_variables)
 
         return loss
 
