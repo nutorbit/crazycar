@@ -70,6 +70,7 @@ urllib3 = "1.25.8"
 Werkzeug = "0.16.1"
 wincertstore = "0.2"
 wrapt = "1.11.2"
+jupyterlab = "^2.2.8"
 
 [tool.poetry.dev-dependencies]
 

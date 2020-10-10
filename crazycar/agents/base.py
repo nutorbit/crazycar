@@ -156,18 +156,13 @@ class BaseAgent:
 
         x, y, yaw = self.get_coordinate()
 
-        angles = list(range(-180, 180 + 1, 45))
+        angles = []
+        for field in self._direction_field:
+            a = field(x, y)
+            if a:
+                angles.append(float(a))
 
-        for angle in angles:
-            # skip angle
-            if angle not in self._direction_field:
-                continue
-
-            # in range
-            if any([func(x, y) for func in self._direction_field[angle]]):
-                return angle
-
-        # return res[0]
+        return angles[0]
 
     def get_diff_angle(self):
         """
@@ -281,10 +276,13 @@ class BaseAgent:
                                            part_id)  # 5==red block; 1==right wheel; 3==left wheel
         objs = self._p.getOverlappingObjects(aabbmin, aabbmax)
 
-        for x in objs:
-            if x[1] == -1 and not (x[0] == self.racecarUniqueId or x[0] == self.plane_id):
-                return True
-        return False
+        try:
+            for x in objs:
+                if x[1] == -1 and not (x[0] == self.racecarUniqueId or x[0] == self.plane_id):
+                    return True
+            return False
+        except:
+            return False
 
     def is_collision(self):
         """
@@ -322,6 +320,22 @@ class BaseAgent:
         # update
         x, y, _ = self.get_coordinate()
         self.atGoal |= 2.1 <= x <= 2.9 and 0.9 <= y <= 1
+
+    def get_info(self):
+        """
+        Information about the car
+
+        Returns:
+            dictionary of infos
+        """
+
+        return {
+            "angle_direction": self.get_angle_field(),
+            "angle_diff": self.get_diff_angle(),
+            "coordinate": self.get_coordinate(),
+            "no_collision": self.nCollision,
+            "speed": self.speed
+        }
 
     def get_reward(self):
         """

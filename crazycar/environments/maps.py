@@ -118,41 +118,40 @@ class Map:
         y5 = -0.05 / 2 + 0.7 + 0.05 / 2 + 5
         y6 = -0.05 / 2 + 6.5
 
-        direction_field = {  # degree
-            0: [
-                lambda i, j: (x1 <= i <= x3) and (0 <= j <= y1),
-            ],
-            45: [
-                lambda i, j: (x3 <= i <= x4) and (0 <= j <= y1),
-                lambda i, j: (x1 <= i <= x2) and (y2 <= j <= y3),
-                lambda i, j: (x1 <= i <= x2) and (y4 <= j <= y5),
-            ],
-            90: [
-                lambda i, j: (x3 <= i <= x4) and (y1 <= j <= y5),
-                lambda i, j: (x1 <= i <= x2) and (y3 <= j <= y4)
-            ],
-            135: [
-                lambda i, j: (x3 <= i <= x4) and (y5 <= j <= y6)
-            ],
-            180: [
-                lambda i, j: (x1 <= i <= x3) and (y1 <= j <= y2),
-                lambda i, j: (x1 <= i <= x3) and (y5 <= j <= y6)
-            ],
-            -135: [
-                lambda i, j: (0 <= i <= x1) and (y5 <= j <= y6),
-                lambda i, j: (0 <= i <= x1) and ((y1 + y2) / 2 <= j <= y2),
-            ],
-            -90: [
-                lambda i, j: (0 <= i <= x1) and (y1 <= j <= (y1 + y2) / 2),
-                lambda i, j: (0 <= i <= x1) and (y3 <= j <= y5),
-                lambda i, j: (x2 <= i <= x3) and (y2 <= j <= y4)
-            ],
-            -45: [
-                lambda i, j: (0 <= i <= x1) and (0 <= j <= y1),
-                lambda i, j: (0 <= i <= x1) and (y2 <= j <= y3),
-                lambda i, j: (x2 <= i <= x3) and (y4 <= j <= y5),
-            ]
-        }
+        direction_field = [
+            # 0
+            lambda i, j: "0" if (x1 <= i <= x3) and (0 <= j <= y1) else None,
+
+            # 45
+            lambda i, j: "45" if (x3 <= i <= x4) and (0 <= j <= y1) else None,
+            lambda i, j: "45" if (x1 <= i <= x2) and (y2 <= j <= y3) else None,
+            lambda i, j: "45" if (x1 <= i <= x2) and (y4 <= j <= y5) else None,
+
+            # 90
+            lambda i, j: "90" if (x3 <= i <= x4) and (y1 <= j <= y5) else None,
+            lambda i, j: "90" if (x1 <= i <= x2) and (y3 <= j <= y4) else None,
+
+            # 135
+            lambda i, j: "135" if (x3 <= i <= x4) and (y5 <= j <= y6) else None,
+
+            # 180
+            lambda i, j: "180" if (x1 <= i <= x3) and (y1 <= j <= y2) else None,
+            lambda i, j: "180" if (x1 <= i <= x3) and (y5 <= j <= y6) else None,
+
+            # -135
+            lambda i, j: "-135" if (0 <= i <= x1) and (y5 <= j <= y6) else None,
+            lambda i, j: "-135" if (0 <= i <= x1) and ((y1 + y2) / 2 <= j <= y2) else None,
+
+            # -90
+            lambda i, j: "-90" if (0 <= i <= x1) and (y1 <= j <= (y1 + y2) / 2) else None,
+            lambda i, j: "-90" if (0 <= i <= x1) and (y3 <= j <= y5) else None,
+            lambda i, j: "-90" if (x2 <= i <= x3) and (y2 <= j <= y4) else None,
+
+            # -45
+            lambda i, j: "-45" if (0 <= i <= x1) and (0 <= j <= y1) else None,
+            lambda i, j: "-45" if (0 <= i <= x1) and (y2 <= j <= y3) else None,
+            lambda i, j: "-45" if (x2 <= i <= x3) and (y4 <= j <= y5) else None,
+        ]
 
         return direction_field, [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14]
 
@@ -209,23 +208,22 @@ class Map:
         y2 = self.y + 0.7 + self.width / 2 + 5.0
         y3 = -0.05 / 2 + 6.5
 
-        direction_field = {  # degree
-            0: [
-                lambda i, j: (x1 <= i <= x2) and (0 <= j <= y1),
-                lambda i, j: (0 <= i <= x1) and (0 <= j <= y1),
-            ],
-            90: [
-                lambda i, j: (x2 <= i <= x3) and (y1 <= j <= y2),
-                lambda i, j: (x2 <= i <= x3) and (0 <= j <= y1),
-            ],
-            180: [
-                lambda i, j: (x1 <= i <= x2) and (y2 <= j <= y3),
-                lambda i, j: (x2 <= i <= x3) and (y2 <= j <= y3)
-            ],
-            -90: [
-                lambda i, j: (0 <= i <= x1) and (y1 <= j <= y2),
-                lambda i, j: (0 <= i <= x1) and (y2 <= j <= y3),
-            ],
-        }
+        direction_field = [
+            # 0
+            lambda i, j: "0" if (x1 <= i <= x2) and (0 <= j <= y1) else None,
+            lambda i, j: "0" if (0 <= i <= x1) and (0 <= j <= y1) else None,
+
+            # 90
+            lambda i, j: "90" if (x2 <= i <= x3) and (y1 <= j <= y2) else None,
+            lambda i, j: "90" if (x2 <= i <= x3) and (0 <= j <= y1) else None,
+
+            # 180
+            lambda i, j: "180" if (x1 <= i <= x2) and (y2 <= j <= y3) else None,
+            lambda i, j: "180" if (x2 <= i <= x3) and (y2 <= j <= y3) else None,
+
+            # -90
+            lambda i, j: "-90" if (0 <= i <= x1) and (y1 <= j <= y2) else None,
+            lambda i, j: "-90" if (0 <= i <= x1) and (y2 <= j <= y3) else None,
+        ]
 
         return direction_field, [w1, w2, w3, w4, w5, w6, w7, w8]

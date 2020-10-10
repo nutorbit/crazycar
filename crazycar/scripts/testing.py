@@ -1,15 +1,13 @@
 import math
-import numpy as np
 import tensorflow as tf
 
 from absl import app, flags
 
 from crazycar.environments import Environment
-from crazycar.agents import ImageAgent, SensorAgent
-from crazycar.algos import TD3, SAC
-from crazycar.encoder import Image, Sensor
-from crazycar.utils import initial, evaluation
-
+from crazycar.agents import SensorAgent
+from crazycar.algos_tf import SAC
+from crazycar.algos_tf.encoder import Sensor
+from crazycar.utils import initial
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("n_episode", int(1e6), "number of episode for testing")

@@ -18,7 +18,7 @@ class Environment:
     """
 
     def __init__(self, map_id=1):
-        self.p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
+        self.p = bullet_client.BulletClient(connection_mode=pybullet.DIRECT)
         self.map_id = map_id
         self.cars = []
         self.position_cars = []
@@ -38,7 +38,7 @@ class Environment:
 
         self.p.resetSimulation()
         self.p.setTimeStep(TIMESTEP_SIM)
-        self.p.setPhysicsEngineParameter(fixedTimeStep=1.0 / 60., numSolverIterations=550, numSubSteps=8)
+        # self.p.setPhysicsEngineParameter(fixedTimeStep=1.0 / 60., numSolverIterations=550, numSubSteps=8)
 
         # spawn plane
         self.plane_id = self.p.loadURDF(os.path.join(MODULE_PATH, "data/plane.urdf"))
@@ -86,17 +86,6 @@ class Environment:
         if self.n_reset == 1:
             self.position_cars.append([car_obj, position])
 
-    def get_speed(self):
-        """
-        Get speed of car in environment
-
-        Returns:
-            list (speed for each car)
-        """
-
-        res = [car.speed for car in self.cars]
-        return res
-
     def get_obs(self):
         """
         Get observation of car in environment
@@ -137,7 +126,11 @@ class Environment:
             dictionary
         """
 
-        return {}
+        res = {
+            "cars": [car.get_info() for car in self.cars],
+            "no_steps": self.step_count,
+        }
+        return res
 
     @timing('environment_step', debug=False)
     def step(self, acts):
